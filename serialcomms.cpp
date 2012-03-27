@@ -1,16 +1,18 @@
-
 #include <avr/io.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <avr/interrupt.h>
 #include <avr/delay.h>
 
+
 #include "serialcomms.hpp"
+#include "pinutil.hpp"
+
 
 
 /* USART member functions */
 
-USART::USART(volatile uint8_t * UBRRnH, volatile uint8_t * UBRRnL, volatile uint8_t * UCSRnA, volatile uint8_t * UCSRnB, volatile uint8_t * UCSRnC, volatile uint8_t * UDRn, uint8_t UDREn) {
+USART::USART(volatile uint8_t * UBRRnH, volatile uint8_t * UBRRnL, volatile uint8_t * UCSRnA, volatile uint8_t * UCSRnB, volatile uint8_t * UCSRnC, volatile uint8_t * UDRn, uint8_t UDREn, uint8_t U2Xn) {
 	_UBRRnH = UBRRnH;
 	_UBRRnL = UBRRnL;
 	_UCSRnA = UCSRnA;
@@ -18,17 +20,29 @@ USART::USART(volatile uint8_t * UBRRnH, volatile uint8_t * UBRRnL, volatile uint
 	_UCSRnC = UCSRnC;
 	_UDRn = UDRn;
 	_UDREn = UDREn;
+	_U2Xn = U2Xn;
 }
 
-void USART::init(unsigned int baud) {
+void USART::init() {
+
 	/* Set baud rate */
-	unsigned int ubrr = F_CPU/16/baud-1;
-	*_UBRRnH = (unsigned char)(ubrr>>8);
-	*_UBRRnL = (unsigned char)ubrr;
+	//unsigned int ubrr = F_CPU/16/baud-1;
+	#define BAUD 9600
+	#include <util/setbaud.h>
+
+	//*_UBRRnH = (unsigned char)(ubrr>>8);
+	//*_UBRRnL = (unsigned char)ubrr;
+	*_UBRRnH = UBRRH_VALUE;
+	*_UBRRnL = UBRRL_VALUE;
 	*_UCSRnB |= (1<<TXEN0)|(1<<RXCIE0);
+	#if USE_2X
+		*_UCSRnA |= (1 << _U2Xn);
+   	#else
+   		*_UCSRnA &= ~(1 << _U2Xn);
+   	#endif
 	//enable_rx();
-	/* Set frame format: 8data, 1stop bit */
-	*_UCSRnC = (3<<UCSZ00);
+	/* Set frame format: 8 data, 1 stop bit */
+	*_UCSRnC = (1<<UCSZ00)|(1<<UCSZ01);
 }
 
 void USART::send_blocking(uint8_t data)
@@ -37,16 +51,16 @@ void USART::send_blocking(uint8_t data)
 	while ( !( *_UCSRnA & (1<<_UDREn)) );
 	/* Put data into buffer, sends the data */
 	*_UDRn = data;
-	while ( !( *_UCSRnA & (1<<_UDREn)) );
 }
 
 void USART::enable_rx(void) {
-	/* Enable receiver and transmitter */
+	/* Enable receiver */
 	*_UCSRnB |= (1<<RXEN0);
+	//*_UCSRnB |= (1<<TXEN0);
 }
 
 void USART::disable_rx(void) {
-	/* Disable receiver and transmitter */
+	/* Disable receiver */
 	*_UCSRnB &= ~(1<<RXEN0);
 }
 
@@ -58,6 +72,8 @@ MultiplexedComms::MultiplexedComms(USART* usart, uint8_t num_ports, volatile uin
 	_num_ports = num_ports;
 	_port_snoop_ports = port_snoop_ports;
 	_port_snoop_pins = port_snoop_pins;
+	_receiving = false;
+	_wish_to_transmit = false;
 }
 
 void MultiplexedComms::set_current_port(uint8_t port) {
@@ -73,13 +89,37 @@ void MultiplexedComms::incoming_data(uint8_t port) {
 	/* Check to see if we are transmitting or receiving, if
 	 * we are then ignore the new data, if not then wait until
 	 * the pin goes back to normal and start receiving it */
-	if (!_receiving || !_transmitting) {
-		set_current_port(port);
+	if (!_receiving && (!_wish_to_transmit || port == _wish_to_transmit_port)) {
+		// we want falling edge
+		if(!CHECK_BIT(PINB, 0)){
+			// it should be all zeros, meaning it should last about 930us
+			// so sample once every 10us and check to see if is zero for
+			// all that time
+			bool errorflag = false;
+			for(int i = 0; i < 80; i++){
+				//SET_BIT(PORTC, 0);
+				//CLR_BIT(PORTC, 0);
+				//SET_BIT(PORTC, 0);
+				if(CHECK_BIT(PINB, 0)) {
+					errorflag = true;
+					break;
+				}
+				_delay_us(10);
+			}
+			if (!errorflag) {
+				// no errors, so continue
+				// wait until end of start byte
+				while(!CHECK_BIT(PINB, 0));
 
-		while(!snoop_port(port));
+				// inform the multiplexed comms module we have
+				// incoming data on this port
+				if(_current_port != port)
+					set_current_port(port);
+				start_rx();
+			}
 
+		}
 
-		start_rx();
 	}
 }
 
@@ -88,7 +128,6 @@ void MultiplexedComms::start_rx(void) {
 	_current_rx_packet.have_packet_length = false;
 	_current_rx_packet.packet_length = 0;
 	_current_rx_packet.current_rx_byte_index = 0;
-	free(_current_rx_packet.received_packet);
 	_rx_done = false;
 	_receiving = true;
 	_rx_timeout_timer = 0;
@@ -98,18 +137,21 @@ void MultiplexedComms::start_rx(void) {
 void MultiplexedComms::rx_byte(uint8_t byte_in) {
 	/* Called when a byte is received over the serial line */
 	if(_receiving) {
+		_rx_timeout_timer = 0;
 		if(!_current_rx_packet.have_packet_length) {
 			_current_rx_packet.packet_length = byte_in;
-			if (byte_in != 0)
-				_current_rx_packet.received_packet = (uint8_t*)malloc(_current_rx_packet.packet_length * sizeof(uint8_t));
-			else
+			_current_rx_packet.have_packet_length = true;
+			_current_rx_packet.current_rx_byte_index = 0;
+			if (byte_in == 0)
 				finish_rx();
 		} else {
 			_current_rx_packet.received_packet[_current_rx_packet.current_rx_byte_index] = byte_in;
 			_current_rx_packet.current_rx_byte_index++;
 
 			if(_current_rx_packet.current_rx_byte_index >= _current_rx_packet.packet_length) {
+
 				finish_rx();
+
 			}
 
 		}
@@ -130,22 +172,26 @@ void MultiplexedComms::finish_rx(void) {
 	_enable_incoming_data_interrupts_func();
 }
 
-bool MultiplexedComms::send_data(uint8_t port, uint8_t* data, uint8_t data_length) {
-	if(!_receiving || _current_port == port) {
-		_transmitting = true;
-		if(_current_port != port)
-			set_current_port(port);
+void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t data_length) {
 
-		for (int i = 0; i < data_length; i++) {
-			_delay_ms(USART_SEND_DELAY_MS);
-			_usart->send_blocking(data[i]);
-		}
-		_transmitting = false;
-		return true;
-	} else {
-		return false;
+	// flag that we wish to transmit data
+	_wish_to_transmit_port = port;
+	_wish_to_transmit = true;
+
+	// spin until we have stopped receiving or we are receiving but
+	// on the correct port
+	while(_receiving && (_current_port != port));
+
+	if(_current_port != port)
+		set_current_port(port);
+
+	for (int i = 0; i < data_length; i++) {
+		//_delay_ms(USART_SEND_DELAY_MS);
+		_usart->send_blocking(data[i]);
 	}
+	_wish_to_transmit = false;
 }
+
 
 
 void MultiplexedComms::timer_tick(void) {
@@ -157,7 +203,7 @@ void MultiplexedComms::timer_tick(void) {
 	}
 }
 
-void MultiplexedComms::init(void (*rx_packet_callback)(uint8_t* rx_packet, uint8_t rx_packet_length), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void)) {
+void MultiplexedComms::init(void (*rx_packet_callback)(volatile uint8_t* rx_packet, uint8_t rx_packet_length), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void)) {
 	_rx_packet_callback = rx_packet_callback;
 	_enable_incoming_data_interrupts_func = enable_incoming_data_interrupts_func;
 	_disable_incoming_data_interrupts_func = disable_incoming_data_interrupts_func;

@@ -1,23 +1,29 @@
-#ifndef F_CPU
-	#define F_CPU 8000000UL
-#endif
+//#ifndef F_CPU
+//	#define F_CPU 8000000UL
+//#endif
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
+#include  "pinutil.hpp"
 #include "serialcomms.hpp"
 
 
-USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0);
+USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
 volatile uint8_t* port_snoop_ports[] = { &PORTB };
 volatile uint8_t port_snoop_pins[] = { 0 };
 
 
+
 MultiplexedComms multiplexedComms(&USART0, 1, port_snoop_ports, port_snoop_pins);
 
 volatile uint16_t timer_test_counter = 0;
+
+/* Temp testing variables */
+volatile bool send_test_bytes = false;
+/* End temp testing variables */
 
 ISR(PCINT0_vect) {
 	/* Pin change interrupt issued when a change is detected on any of masked PCINT0 pins */
@@ -25,7 +31,9 @@ ISR(PCINT0_vect) {
 }
 
 ISR(TIMER0_OVF_vect) {
-	/* currently called ~50 times a second */
+	//SET_BIT(PORTC, 1);
+	///CLR_BIT(PORTC, 1);
+	//SET_BIT(PORTC, 1);
 	multiplexedComms.timer_tick();
 }
 
@@ -36,6 +44,7 @@ ISR(USART_RX_vect) {
 }
 
 void setup_pinchange_interrupts(void) {
+	CLR_BIT(DDRB, 0);
 	PCMSK0 = (1<<0);
 }
 
@@ -46,6 +55,7 @@ void pinchange_interrupts_enable(void) {
 
 void pinchange_interrupts_disable(void) {
 	PCICR &= ~(1<<PCIE0);
+
 }
 
 void timer_setup() {
@@ -54,25 +64,35 @@ void timer_setup() {
 	 * a second */
 
 	// set internal clock, prescaler of 1024
-	TCCR0B = (1<<CS02)|(1<<CS00);
+	TCCR0B = (1<<CS01)|(1<<CS00);
 
 	// enable timer overflow interrupt
 	TIMSK0 = (1<<TOIE0);
 
 }
 
-void rx_packet_callback_func(uint8_t* rx_packet, uint8_t rx_packet_length) {
-	uint8_t data_to_send[] = { 0x41 };
-	multiplexedComms.send_data(0, data_to_send, 1);
+void rx_packet_callback_func(volatile uint8_t* rx_packet, uint8_t rx_packet_length) {
+	send_test_bytes = true;
+	SET_BIT(PORTC, 1);
+	CLR_BIT(PORTC, 1);
+	SET_BIT(PORTC, 1);
 }
 
 int main(void) {
 	cli();
-	DDRB = 0x00;
-	DDRD = 0xFF;
+	SET_BIT(DDRC, 0);
+	SET_BIT(PORTC, 0);
+	SET_BIT(DDRC, 1);
+	SET_BIT(PORTC, 1);
+	for(int i = 0; i < 5; i++) {
+		SET_BIT(PORTC, 0);
+		CLR_BIT(PORTC, 0);
+		SET_BIT(PORTC, 0);
+	}
+
 	timer_setup();
 	setup_pinchange_interrupts();
-	USART0.init(9600);
+	USART0.init();
 	multiplexedComms.init(rx_packet_callback_func, pinchange_interrupts_enable, pinchange_interrupts_disable);
 	sei();
 	while(false) {
@@ -84,12 +104,18 @@ int main(void) {
 		}
 		_delay_ms(100);
 	}
-	uint8_t data_to_send[] = { 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48 };
+	uint8_t data_to_send[] = { 0x00, 0x01, 0x03 };
 	while(false) {
-		multiplexedComms.send_data(0, data_to_send, 8);
+		multiplexedComms.send_data_blocking(0, data_to_send, 3);
 		_delay_ms(100);
 	}
 	while(true) {
+		if (send_test_bytes) {
+			send_test_bytes = false;
+			uint8_t data_to_send[] = { 0x00, 0x01, 0x03 };
+			multiplexedComms.send_data_blocking(0, data_to_send, 3);
+
+		}
 	}
 
 }
