@@ -67,11 +67,11 @@ void USART::disable_rx(void) {
 
 /* MultiplexedComms member functions */
 
-MultiplexedComms::MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t ** port_snoop_ports, volatile uint8_t* port_snoop_pins) {
+MultiplexedComms::MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t * const * port_snoop_pins_in, const uint8_t* port_snoop_pinnos_in) {
 	_usart = usart;
 	_num_ports = num_ports;
-	_port_snoop_ports = port_snoop_ports;
-	_port_snoop_pins = port_snoop_pins;
+	_port_snoop_pins = port_snoop_pins_in;
+	_port_snoop_pinnos = port_snoop_pinnos_in;
 	_receiving = false;
 	_wish_to_transmit = false;
 }
@@ -91,7 +91,7 @@ void MultiplexedComms::incoming_data(uint8_t port) {
 	 * the pin goes back to normal and start receiving it */
 	if (!_receiving && (!_wish_to_transmit || port == _wish_to_transmit_port)) {
 		// we want falling edge
-		if(!CHECK_BIT(PINB, 0)){
+		if(!CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port])){
 			// it should be all zeros, meaning it should last about 930us
 			// so sample once every 10us and check to see if is zero for
 			// all that time
@@ -100,7 +100,7 @@ void MultiplexedComms::incoming_data(uint8_t port) {
 				//SET_BIT(PORTC, 0);
 				//CLR_BIT(PORTC, 0);
 				//SET_BIT(PORTC, 0);
-				if(CHECK_BIT(PINB, 0)) {
+				if(CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port])) {
 					errorflag = true;
 					break;
 				}
@@ -109,7 +109,7 @@ void MultiplexedComms::incoming_data(uint8_t port) {
 			if (!errorflag) {
 				// no errors, so continue
 				// wait until end of start byte
-				while(!CHECK_BIT(PINB, 0));
+				while(!CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port]));
 
 				// inform the multiplexed comms module we have
 				// incoming data on this port
@@ -211,5 +211,5 @@ void MultiplexedComms::init(void (*rx_packet_callback)(volatile uint8_t* rx_pack
 }
 
 bool MultiplexedComms::snoop_port(uint8_t port) {
-	return (*_port_snoop_ports[port] & (1<<_port_snoop_pins[port]));
+	return (*_port_snoop_pins[port] & (1<<_port_snoop_pinnos[port]));
 }

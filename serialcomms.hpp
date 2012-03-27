@@ -38,7 +38,7 @@ struct rx_packet_t {
 class MultiplexedComms
 {
 public:
-	MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t ** port_snoop_ports, volatile uint8_t* port_snoop_pins);
+	MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t * const * port_snoop_ports_in, const uint8_t* port_snoop_pins_in);
 	void init(void (*rx_packet_callback)(volatile uint8_t*, uint8_t), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void));
 	void incoming_data(uint8_t port);
 	void send_data_blocking(uint8_t port, uint8_t* data, uint8_t data_length);
@@ -63,8 +63,8 @@ private:
 	volatile uint8_t _rx_timeout_timer;
 
 	volatile rx_packet_t _current_rx_packet;
-	volatile uint8_t ** _port_snoop_ports;
-	volatile uint8_t * _port_snoop_pins;
+	volatile uint8_t * const* _port_snoop_pins;
+	const uint8_t * _port_snoop_pinnos;
 
 	void (*_rx_packet_callback)(volatile uint8_t*, uint8_t);
 	void (*_enable_incoming_data_interrupts_func)(void);
