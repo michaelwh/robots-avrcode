@@ -1,3 +1,4 @@
+#Fri Mar 30 14:34:14 BST 2012
 avrtarget/ClockFrequency=8000000
 avrtarget/ExtRAMSize=0
 avrtarget/ExtendedRAM=false
@@ -10,6 +11,11 @@ avrtarget/avrdude/EEPROMFile=
 avrtarget/avrdude/EEPROMFromConfig=true
 avrtarget/avrdude/FlashFile=
 avrtarget/avrdude/FlashFromConfig=true
+avrtarget/avrdude/Fuses/ByteValues=226\:223\:1
+avrtarget/avrdude/Fuses/FileName=
+avrtarget/avrdude/Fuses/MCUid=atmega168
+avrtarget/avrdude/Fuses/UseFile=false
+avrtarget/avrdude/Fuses/Write=false
 avrtarget/avrdude/NoChipErase=false
 avrtarget/avrdude/NoSigCheck=false
 avrtarget/avrdude/NoVerify=false

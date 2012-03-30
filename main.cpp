@@ -14,24 +14,50 @@
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
-volatile uint8_t * const port_snoop_pins[] = { &PINB };
-const uint8_t port_snoop_pinsnos[] = { 0 };
+const uint8_t num_ports = 2;
+volatile uint8_t * const port_snoop_pins[] = { &PINB, &PINB };
+const uint8_t port_snoop_pinsnos[] = { 0, 1 };
+volatile bool prev_pinchange_values[num_ports];
 
-MultiplexedComms multiplexedComms(&USART0, 1, port_snoop_pins, port_snoop_pinsnos);
+MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoop_pinsnos);
 
-volatile uint16_t timer_test_counter = 0;
+
+
+
 
 /* Temp testing variables */
 volatile bool send_test_bytes = false;
 volatile uint8_t* test_bytes;
 volatile uint8_t test_bytes_len = 0;
+volatile uint16_t timer_test_counter = 0;
 //uint16_t test_start_timer_val = 0;
 //volatile uint16_t test_num_ms_elapsed = 0;
 /* End temp testing variables */
 
 ISR(PCINT0_vect) {
 	/* Pin change interrupt issued when a change is detected on any of masked PCINT0 pins */
-	multiplexedComms.incoming_data_blocking(0);
+	// check each port to determine which triggered the pinchange interrupt
+	// might need to store previous state of each pin and compare to determine which one caused
+	// interrupt
+
+//	SET_BIT(PORTC, 1);
+//	CLR_BIT(PORTC, 1);
+//	_delay_us(100);
+//	SET_BIT(PORTC, 1);
+	int port = -1;
+	for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
+		if (CHECK_BIT(*port_snoop_pins[port_i], port_snoop_pinsnos[port_i])) {
+			prev_pinchange_values[port_i] = true;
+		} else {
+			if(prev_pinchange_values[port_i] == true) {
+				port = port_i;
+			}
+			prev_pinchange_values[port_i] = false;
+		}
+	}
+	if (port != -1) {
+		multiplexedComms.incoming_data_blocking(port);
+	}
 }
 
 
@@ -45,17 +71,34 @@ ISR(TIMER1_COMPA_vect) {
 	//SET_BIT(PORTC, 1);
 	//CLR_BIT(PORTC, 1);
 	multiplexedComms.timer_ms_tick();
+
 	//test_num_ms_elapsed++;
 	//SET_BIT(PORTC, 1);
 }
 
 void setup_pinchange_interrupts(void) {
+	// configure as inputs
 	CLR_BIT(DDRB, 0);
-	PCMSK0 = (1<<0);
+	CLR_BIT(DDRB, 1);
+
+	// activate internal pull-ups
+	//SET_BIT(DDRB, 0);
+	//SET_BIT(DDRB, 1);
+
+	// enable interrupts on these pins
+	PCMSK0 = (1<<0)|(1<<1);
 }
 
 void pinchange_interrupts_enable(void) {
 	PCICR |= (1<<PCIE0);
+	for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
+		if(CHECK_BIT(*port_snoop_pins[port_i], port_snoop_pinsnos[port_i])) {
+			prev_pinchange_values[port_i] = true;
+		} else {
+			prev_pinchange_values[port_i] = false;
+		}
+	}
+
 }
 
 void pinchange_interrupts_disable(void) {
@@ -63,11 +106,22 @@ void pinchange_interrupts_disable(void) {
 }
 
 void setup_mux(void) {
-
+	SET_BIT(DDRC, 4);
+	CLR_BIT(PORTC, 4);
 }
 
 void set_mux_port(uint8_t port) {
-	uint8_t port_sel = port;
+
+	switch (port) {
+		case 0:
+			CLR_BIT(PORTC, 4);
+			break;
+		case 1:
+			SET_BIT(PORTC, 4);
+			break;
+		default:
+			break;
+	}
 }
 
 void rx_packet_callback_func(volatile uint8_t* rx_packet, uint8_t rx_packet_length) {
@@ -103,21 +157,8 @@ int main(void) {
 	multiplexedComms.init(rx_packet_callback_func, pinchange_interrupts_enable, pinchange_interrupts_disable, set_mux_port);
 	millisecond_timer_enable();
 	sei();
-	while(false) {
-		USART0.send_blocking(0x41);
-		_delay_ms(USART_SEND_DELAY_MS);
-		for (uint8_t i = 1; i < 8; i++) {
-			USART0.send_blocking(0x42 + i);
-			_delay_ms(USART_SEND_DELAY_MS);
-		}
-		_delay_ms(100);
-	}
-	uint8_t data_to_send[] = { 0x00, 0x01, 0x03 };
-	while(false) {
-		multiplexedComms.send_data_blocking(0, data_to_send, 3);
-		_delay_ms(100);
-	}
-	while(false) {
+
+//	while(false) {
 //		uint16_t current_timer_val;
 //		uint16_t current_ticks;
 //		ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
@@ -132,8 +173,7 @@ int main(void) {
 //			CLR_BIT(PORTC, 3);
 //			SET_BIT(PORTC, 3);
 //		}
-
-	}
+//	}
 
 	while(true) {
 		if (send_test_bytes) {

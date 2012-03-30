@@ -85,6 +85,7 @@ void MultiplexedComms::set_current_port(uint8_t port) {
 }
 
 void MultiplexedComms::incoming_data_blocking(uint8_t port) {
+
 	/* Some incoming data has been detected on one of the
 	 * ports */
 
@@ -98,10 +99,10 @@ void MultiplexedComms::incoming_data_blocking(uint8_t port) {
 			// so sample once every 10us and check to see if is zero for
 			// all that time
 			bool errorflag = false;
-			for(int i = 0; i < 80; i++){
-				//SET_BIT(PORTC, 0);
-				//CLR_BIT(PORTC, 0);
-				//SET_BIT(PORTC, 0);
+			for(int i = 0; i < 70; i++){
+				//SET_BIT(PORTC, 1);
+				//CLR_BIT(PORTC, 1);
+				//SET_BIT(PORTC, 1);
 				if(CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port])) {
 					errorflag = true;
 					break;
@@ -146,6 +147,9 @@ void MultiplexedComms::start_rx(void) {
 	_rx_state = RX_ACTIVE;
 	_rx_timeout_timer = 0;
 	_usart->enable_rx();
+
+
+
 }
 
 void MultiplexedComms::rx_byte(uint8_t byte_in) {
@@ -182,6 +186,7 @@ void MultiplexedComms::finish_rx(void) {
 		if (_rx_packet_callback != NULL)
 			_rx_packet_callback(_current_rx_packet.received_packet, _current_rx_packet.packet_length);
 	}
+
 
 	_enable_incoming_data_interrupts_func();
 }
