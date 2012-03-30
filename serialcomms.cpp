@@ -7,6 +7,7 @@
 
 #include "serialcomms.hpp"
 #include "pinutil.hpp"
+#include "timer.hpp"
 
 
 
@@ -72,7 +73,7 @@ MultiplexedComms::MultiplexedComms(USART* usart, uint8_t num_ports, volatile uin
 	_num_ports = num_ports;
 	_port_snoop_pins = port_snoop_pins_in;
 	_port_snoop_pinnos = port_snoop_pinnos_in;
-	_receiving = false;
+	_rx_state = RX_IDLE;
 	_wish_to_transmit = false;
 }
 
@@ -80,16 +81,17 @@ void MultiplexedComms::set_current_port(uint8_t port) {
 	// not implemented yet
 	// change the MUX port here
 	_current_port = port;
+	_set_mux_port_func(port);
 }
 
-void MultiplexedComms::incoming_data(uint8_t port) {
+void MultiplexedComms::incoming_data_blocking(uint8_t port) {
 	/* Some incoming data has been detected on one of the
 	 * ports */
 
 	/* Check to see if we are transmitting or receiving, if
 	 * we are then ignore the new data, if not then wait until
 	 * the pin goes back to normal and start receiving it */
-	if (!_receiving && (!_wish_to_transmit || port == _wish_to_transmit_port)) {
+	if (_rx_state == RX_IDLE && (!_wish_to_transmit || port == _wish_to_transmit_port)) {
 		// we want falling edge
 		if(!CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port])){
 			// it should be all zeros, meaning it should last about 930us
@@ -123,20 +125,32 @@ void MultiplexedComms::incoming_data(uint8_t port) {
 	}
 }
 
+//void MultiplexedComms::imcoming_data_async(uint8_t port) {
+//	if (_rx_state == RX_IDLE && (!_wish_to_transmit || port == _wish_to_transmit_port)) {
+//			// we want falling edge
+//			if(!CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port])){
+//				_rx_state = POSSIBLE_RX_DETECTED;
+//				_possible_rx_ms_counter = 0;
+//				_possible_rx_timer_last_val = get_current_ms_timer_value();
+//			}
+//	}
+//}
+
+
 void MultiplexedComms::start_rx(void) {
 	_disable_incoming_data_interrupts_func();
 	_current_rx_packet.have_packet_length = false;
 	_current_rx_packet.packet_length = 0;
 	_current_rx_packet.current_rx_byte_index = 0;
 	_rx_done = false;
-	_receiving = true;
+	_rx_state = RX_ACTIVE;
 	_rx_timeout_timer = 0;
 	_usart->enable_rx();
 }
 
 void MultiplexedComms::rx_byte(uint8_t byte_in) {
 	/* Called when a byte is received over the serial line */
-	if(_receiving) {
+	if(_rx_state == RX_ACTIVE) {
 		_rx_timeout_timer = 0;
 		if(!_current_rx_packet.have_packet_length) {
 			_current_rx_packet.packet_length = byte_in;
@@ -160,7 +174,7 @@ void MultiplexedComms::rx_byte(uint8_t byte_in) {
 
 void MultiplexedComms::finish_rx(void) {
 	_usart->disable_rx();
-	_receiving = false;
+	_rx_state = RX_IDLE;
 	_rx_timeout_timer = 0;
 
 	if(_current_rx_packet.have_packet_length && _current_rx_packet.current_rx_byte_index >= _current_rx_packet.packet_length) {
@@ -180,7 +194,7 @@ void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t d
 
 	// spin until we have stopped receiving or we are receiving but
 	// on the correct port
-	while(_receiving && (_current_port != port));
+	while(_rx_state != RX_IDLE && (_current_port != port));
 
 	if(_current_port != port)
 		set_current_port(port);
@@ -194,8 +208,8 @@ void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t d
 
 
 
-void MultiplexedComms::timer_tick(void) {
-	if (_receiving) {
+void MultiplexedComms::timer_ms_tick(void) {
+	if (_rx_state == RX_ACTIVE) {
 		_rx_timeout_timer++;
 		if (_rx_timeout_timer >= 10) {
 			finish_rx();
@@ -203,10 +217,11 @@ void MultiplexedComms::timer_tick(void) {
 	}
 }
 
-void MultiplexedComms::init(void (*rx_packet_callback)(volatile uint8_t* rx_packet, uint8_t rx_packet_length), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void)) {
+void MultiplexedComms::init(void (*rx_packet_callback)(volatile uint8_t* rx_packet, uint8_t rx_packet_length), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void), void (*set_mux_port_in)(uint8_t)) {
 	_rx_packet_callback = rx_packet_callback;
 	_enable_incoming_data_interrupts_func = enable_incoming_data_interrupts_func;
 	_disable_incoming_data_interrupts_func = disable_incoming_data_interrupts_func;
+	_set_mux_port_func = set_mux_port_in;
 	_enable_incoming_data_interrupts_func();
 }
 
