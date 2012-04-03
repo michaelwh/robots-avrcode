@@ -12,6 +12,8 @@
 #include "serialcomms.hpp"
 #include "timer.hpp"
 
+#define DEBUG_SENDER
+
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
 const uint8_t num_ports = 2;
@@ -182,6 +184,11 @@ int main(void) {
 //	}
 
 	while(true) {
+#ifdef DEBUG_SENDER
+		uint8_t t_bytes[] = { 0x00, 4, 12, 13, 14, 15 };
+		multiplexedComms.send_data_blocking(0, t_bytes, 6);
+		_delay_ms(100);
+#endif
 		if (send_test_bytes) {
 			send_test_bytes = false;
 			//uint8_t data_to_send[] = { 0x00, 0x01, 0x03 };
