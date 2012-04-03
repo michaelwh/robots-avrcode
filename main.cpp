@@ -29,6 +29,7 @@ MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoo
 volatile bool send_test_bytes = false;
 volatile uint8_t* test_bytes;
 volatile uint8_t test_bytes_len = 0;
+volatile uint8_t test_bytes_port = 0;
 volatile uint16_t timer_test_counter = 0;
 //uint16_t test_start_timer_val = 0;
 //volatile uint16_t test_num_ms_elapsed = 0;
@@ -44,6 +45,7 @@ ISR(PCINT0_vect) {
 //	CLR_BIT(PORTC, 1);
 //	_delay_us(100);
 //	SET_BIT(PORTC, 1);
+
 	int port = -1;
 	for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
 		if (CHECK_BIT(*port_snoop_pins[port_i], port_snoop_pinsnos[port_i])) {
@@ -90,6 +92,7 @@ void setup_pinchange_interrupts(void) {
 }
 
 void pinchange_interrupts_enable(void) {
+	PCIFR |= (1<<PCIF0);
 	PCICR |= (1<<PCIE0);
 	for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
 		if(CHECK_BIT(*port_snoop_pins[port_i], port_snoop_pinsnos[port_i])) {
@@ -111,7 +114,10 @@ void setup_mux(void) {
 }
 
 void set_mux_port(uint8_t port) {
-
+//	SET_BIT(PORTC, 1);
+//	CLR_BIT(PORTC, 1);
+//	_delay_us(10);
+//	SET_BIT(PORTC, 1);
 	switch (port) {
 		case 0:
 			CLR_BIT(PORTC, 4);
@@ -124,9 +130,9 @@ void set_mux_port(uint8_t port) {
 	}
 }
 
-void rx_packet_callback_func(volatile uint8_t* rx_packet, uint8_t rx_packet_length) {
+void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8_t rx_packet_length) {
 	send_test_bytes = true;
-
+	test_bytes_port = rx_port;
 	test_bytes_len = rx_packet_length + 2;
 	test_bytes = (uint8_t*)malloc(test_bytes_len * sizeof(uint8_t));
 	test_bytes[0] = 0x00;
@@ -180,7 +186,7 @@ int main(void) {
 			send_test_bytes = false;
 			//uint8_t data_to_send[] = { 0x00, 0x01, 0x03 };
 
-			multiplexedComms.send_data_blocking(0, (uint8_t*)test_bytes, test_bytes_len);
+			multiplexedComms.send_data_blocking(test_bytes_port, (uint8_t*)test_bytes, test_bytes_len);
 			free((void*)test_bytes);
 		}
 	}

@@ -41,7 +41,7 @@ class MultiplexedComms
 {
 public:
 	MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t * const * port_snoop_ports_in, const uint8_t* port_snoop_pins_in);
-	void init(void (*rx_packet_callback)(volatile uint8_t*, uint8_t), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void), void (*set_mux_port_in)(uint8_t));
+	void init(void (*rx_packet_callback)(uint8_t, volatile uint8_t*, uint8_t), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void), void (*set_mux_port_in)(uint8_t));
 	void incoming_data_blocking(uint8_t port);
 	//void imcoming_data_async(uint8_t port);
 	void send_data_blocking(uint8_t port, uint8_t* data, uint8_t data_length);
@@ -75,7 +75,7 @@ private:
 	volatile uint8_t * const* _port_snoop_pins;
 	const uint8_t * _port_snoop_pinnos;
 
-	void (*_rx_packet_callback)(volatile uint8_t*, uint8_t);
+	void (*_rx_packet_callback)(uint8_t, volatile uint8_t*, uint8_t);
 	void (*_enable_incoming_data_interrupts_func)(void);
 	void (*_disable_incoming_data_interrupts_func)(void);
 	void (*_set_mux_port_func)(uint8_t);

@@ -184,7 +184,7 @@ void MultiplexedComms::finish_rx(void) {
 	if(_current_rx_packet.have_packet_length && _current_rx_packet.current_rx_byte_index >= _current_rx_packet.packet_length) {
 		_rx_done = true;
 		if (_rx_packet_callback != NULL)
-			_rx_packet_callback(_current_rx_packet.received_packet, _current_rx_packet.packet_length);
+			_rx_packet_callback(_current_port, _current_rx_packet.received_packet, _current_rx_packet.packet_length);
 	}
 
 
@@ -222,7 +222,7 @@ void MultiplexedComms::timer_ms_tick(void) {
 	}
 }
 
-void MultiplexedComms::init(void (*rx_packet_callback)(volatile uint8_t* rx_packet, uint8_t rx_packet_length), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void), void (*set_mux_port_in)(uint8_t)) {
+void MultiplexedComms::init(void (*rx_packet_callback)(uint8_t rx_port, volatile uint8_t* rx_packet, uint8_t rx_packet_length), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void), void (*set_mux_port_in)(uint8_t)) {
 	_rx_packet_callback = rx_packet_callback;
 	_enable_incoming_data_interrupts_func = enable_incoming_data_interrupts_func;
 	_disable_incoming_data_interrupts_func = disable_incoming_data_interrupts_func;
