@@ -82,4 +82,10 @@ private:
 
 };
 
+class ReliableComms
+{
+	static uint8_t send_packet(uint8_t port, uint8_t* data, uint8_t data_length);
+	static uint8_t rx_ack(uint8_t port, uint8_t* data, uint8_t data_length);
+};
+
 #endif /* COMMSLOW_HPP_ */

@@ -176,6 +176,7 @@ void MultiplexedComms::rx_byte(uint8_t byte_in) {
 	}
 }
 
+
 void MultiplexedComms::finish_rx(void) {
 	_usart->disable_rx();
 	_rx_state = RX_IDLE;
