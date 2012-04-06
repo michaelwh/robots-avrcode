@@ -133,6 +133,7 @@ void set_mux_port(uint8_t port) {
 }
 
 void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8_t rx_packet_length) {
+	//I will have it from length onwards (Excluding length)
 	send_test_bytes = true;
 	test_bytes_port = rx_port;
 	test_bytes_len = rx_packet_length + 2;
