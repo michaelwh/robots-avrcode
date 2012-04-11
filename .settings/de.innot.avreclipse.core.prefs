@@ -1,8 +1,8 @@
-#Fri Mar 30 14:34:14 BST 2012
-avrtarget/ClockFrequency=8000000
+#Wed Apr 11 11:31:50 BST 2012
+avrtarget/ClockFrequency=16000000
 avrtarget/ExtRAMSize=0
 avrtarget/ExtendedRAM=false
-avrtarget/MCUType=atmega168
+avrtarget/MCUType=atmega644p
 avrtarget/UseEEPROM=false
 avrtarget/UseExtendedRAMforHeap=true
 avrtarget/avrdude/BitBangDelay=
@@ -11,11 +11,11 @@ avrtarget/avrdude/EEPROMFile=
 avrtarget/avrdude/EEPROMFromConfig=true
 avrtarget/avrdude/FlashFile=
 avrtarget/avrdude/FlashFromConfig=true
-avrtarget/avrdude/Fuses/ByteValues=226\:223\:1
+avrtarget/avrdude/Fuses/ByteValues=231\:217\:255
 avrtarget/avrdude/Fuses/FileName=
-avrtarget/avrdude/Fuses/MCUid=atmega168
+avrtarget/avrdude/Fuses/MCUid=atmega644p
 avrtarget/avrdude/Fuses/UseFile=false
-avrtarget/avrdude/Fuses/Write=false
+avrtarget/avrdude/Fuses/Write=true
 avrtarget/avrdude/NoChipErase=false
 avrtarget/avrdude/NoSigCheck=false
 avrtarget/avrdude/NoVerify=false

@@ -1,5 +1,5 @@
 //#ifndef F_CPU
-//	#define F_CPU 8000000UL
+//	#define F_CPU 16000000UL
 //#endif
 
 #include <avr/io.h>
@@ -65,7 +65,7 @@ ISR(PCINT0_vect) {
 }
 
 
-ISR(USART_RX_vect) {
+ISR(USART0_RX_vect) {
 	/* interrupt that fires whenever a data byte is received over serial */
 	uint8_t rx_byte = UDR0;
 	multiplexedComms.rx_byte(rx_byte);

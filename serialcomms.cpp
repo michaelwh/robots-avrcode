@@ -68,6 +68,10 @@ void USART::disable_rx(void) {
 
 /* MultiplexedComms member functions */
 
+
+/* :param num_ports: the number of 'ports' this usart will be connected to
+ * :param port_snoop_pins_in: a list of pointers to the PIN registers for each of the snoop pins,
+ *                            the format of this list is: [snoop_PIN_0][orientation_PIN_0][snoop_PIN_1][orientation_PIN_1]... */
 MultiplexedComms::MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t * const * port_snoop_pins_in, const uint8_t* port_snoop_pinnos_in) {
 	_usart = usart;
 	_num_ports = num_ports;
