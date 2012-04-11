@@ -12,13 +12,13 @@
 #include "serialcomms.hpp"
 #include "timer.hpp"
 
-#define DEBUG_SENDER
+//#define DEBUG_SENDER
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
-const uint8_t num_ports = 2;
-volatile uint8_t * const port_snoop_pins[] = { &PINB, &PINB };
-const uint8_t port_snoop_pinsnos[] = { 0, 1 };
+const uint8_t num_ports = 6;
+volatile uint8_t * const port_snoop_pins[] = { &PINB, &PINB, &PINB, &PINB, &PINB, &PIND };
+const uint8_t port_snoop_pinsnos[] = { 0, 1, 2, 3, 4, 6 };
 volatile bool prev_pinchange_values[num_ports];
 
 MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoop_pinsnos);
@@ -37,16 +37,12 @@ volatile uint16_t timer_test_counter = 0;
 //volatile uint16_t test_num_ms_elapsed = 0;
 /* End temp testing variables */
 
-ISR(PCINT0_vect) {
+
+void pinchange_interrupt(void) {
 	/* Pin change interrupt issued when a change is detected on any of masked PCINT0 pins */
 	// check each port to determine which triggered the pinchange interrupt
 	// might need to store previous state of each pin and compare to determine which one caused
 	// interrupt
-
-//	SET_BIT(PORTC, 1);
-//	CLR_BIT(PORTC, 1);
-//	_delay_us(100);
-//	SET_BIT(PORTC, 1);
 
 	int port = -1;
 	for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
@@ -63,7 +59,13 @@ ISR(PCINT0_vect) {
 		multiplexedComms.incoming_data_blocking(port);
 	}
 }
+ISR(PCINT1_vect) {
+	pinchange_interrupt();
+}
 
+ISR(PCINT3_vect) {
+	pinchange_interrupt();
+}
 
 ISR(USART0_RX_vect) {
 	/* interrupt that fires whenever a data byte is received over serial */
@@ -84,18 +86,23 @@ void setup_pinchange_interrupts(void) {
 	// configure as inputs
 	CLR_BIT(DDRB, 0);
 	CLR_BIT(DDRB, 1);
+	CLR_BIT(DDRB, 2);
+	CLR_BIT(DDRB, 3);
+	CLR_BIT(DDRB, 4);
+	CLR_BIT(DDRD, 6);
 
 	// activate internal pull-ups
 	//SET_BIT(DDRB, 0);
 	//SET_BIT(DDRB, 1);
 
-	// enable interrupts on these pins
-	PCMSK0 = (1<<0)|(1<<1);
+	// interrupt mask on these pins
+	PCMSK1 |= 0x1F;
+	PCMSK3 |= (1<<PCINT30);
 }
 
 void pinchange_interrupts_enable(void) {
-	PCIFR |= (1<<PCIF0);
-	PCICR |= (1<<PCIE0);
+	PCIFR |= (1<<PCIF1)|(1<<PCIF3);
+	PCICR |= (1<<PCIE1)|(1<<PCIE3);
 	for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
 		if(CHECK_BIT(*port_snoop_pins[port_i], port_snoop_pinsnos[port_i])) {
 			prev_pinchange_values[port_i] = true;
@@ -107,12 +114,16 @@ void pinchange_interrupts_enable(void) {
 }
 
 void pinchange_interrupts_disable(void) {
-	PCICR &= ~(1<<PCIE0);
+	PCICR &= ~((1<<PCIE1)|(1<<PCIE3));
 }
 
 void setup_mux(void) {
-	SET_BIT(DDRC, 4);
-	CLR_BIT(PORTC, 4);
+	SET_BIT(DDRA, 0);
+	CLR_BIT(PORTA, 0);
+	SET_BIT(DDRA, 1);
+	CLR_BIT(PORTA, 1);
+	SET_BIT(DDRA, 2);
+	CLR_BIT(PORTA, 2);
 }
 
 void set_mux_port(uint8_t port) {
@@ -120,16 +131,12 @@ void set_mux_port(uint8_t port) {
 //	CLR_BIT(PORTC, 1);
 //	_delay_us(10);
 //	SET_BIT(PORTC, 1);
-	switch (port) {
-		case 0:
-			CLR_BIT(PORTC, 4);
-			break;
-		case 1:
-			SET_BIT(PORTC, 4);
-			break;
-		default:
-			break;
-	}
+	// least significant three bits of port should map directly onto least significant three bits of PORTA
+	SET_BIT(PORTC, 1);
+	CLR_BIT(PORTC, 1);
+	_delay_us(200);
+	SET_BIT(PORTC, 1);*
+	PORTA = ((0xF8) & PORTA) | port;
 }
 
 void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8_t rx_packet_length) {
@@ -144,16 +151,13 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 		test_bytes[i] = rx_packet[i-2];
 }
 
+
 int main(void) {
 	cli();
 	SET_BIT(DDRC, 0);
 	SET_BIT(PORTC, 0);
 	SET_BIT(DDRC, 1);
 	SET_BIT(PORTC, 1);
-	SET_BIT(DDRC, 2);
-	SET_BIT(PORTC, 2);
-	SET_BIT(DDRC, 3);
-	SET_BIT(PORTC, 3);
 	for(int i = 0; i < 5; i++) {
 		SET_BIT(PORTC, 0);
 		CLR_BIT(PORTC, 0);
@@ -183,6 +187,8 @@ int main(void) {
 //			SET_BIT(PORTC, 3);
 //		}
 //	}
+
+
 
 	while(true) {
 #ifdef DEBUG_SENDER

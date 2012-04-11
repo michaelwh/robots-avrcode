@@ -151,13 +151,11 @@ void MultiplexedComms::start_rx(void) {
 	_rx_state = RX_ACTIVE;
 	_rx_timeout_timer = 0;
 	_usart->enable_rx();
-
-
-
 }
 
 void MultiplexedComms::rx_byte(uint8_t byte_in) {
 	/* Called when a byte is received over the serial line */
+
 	if(_rx_state == RX_ACTIVE) {
 		_rx_timeout_timer = 0;
 		if(!_current_rx_packet.have_packet_length) {
