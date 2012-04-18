@@ -135,7 +135,7 @@ void set_mux_port(uint8_t port) {
 	SET_BIT(PORTC, 1);
 	CLR_BIT(PORTC, 1);
 	_delay_us(200);
-	SET_BIT(PORTC, 1);*
+	SET_BIT(PORTC, 1);
 	PORTA = ((0xF8) & PORTA) | port;
 }
 
