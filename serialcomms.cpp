@@ -72,13 +72,16 @@ void USART::disable_rx(void) {
 /* :param num_ports: the number of 'ports' this usart will be connected to
  * :param port_snoop_pins_in: a list of pointers to the PIN registers for each of the snoop pins,
  *                            the format of this list is: [snoop_PIN_0][orientation_PIN_0][snoop_PIN_1][orientation_PIN_1]... */
-MultiplexedComms::MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t * const * port_snoop_pins_in, const uint8_t* port_snoop_pinnos_in) {
+MultiplexedComms::MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t * const * port_snoop_pins_in, const uint8_t* port_snoop_pinnos_in, volatile uint8_t * const * port_snoop_orientation_pins_in, const uint8_t* port_snoop_orientation_pinnos_in) {
 	_usart = usart;
 	_num_ports = num_ports;
 	_port_snoop_pins = port_snoop_pins_in;
 	_port_snoop_pinnos = port_snoop_pinnos_in;
+	_port_snoop_orientation_pins = port_snoop_orientation_pins_in;
+	_port_snoop_orientation_pinnos = port_snoop_orientation_pinnos_in;
 	_rx_state = RX_IDLE;
 	_wish_to_transmit = false;
+	_locked_to_port = false;
 }
 
 void MultiplexedComms::set_current_port(uint8_t port) {
@@ -96,14 +99,14 @@ void MultiplexedComms::incoming_data_blocking(uint8_t port) {
 	/* Check to see if we are transmitting or receiving, if
 	 * we are then ignore the new data, if not then wait until
 	 * the pin goes back to normal and start receiving it */
-	if (_rx_state == RX_IDLE && (!_wish_to_transmit || port == _wish_to_transmit_port)) {
+	if (_rx_state == RX_IDLE && (!_wish_to_transmit || port == _wish_to_transmit_port) && !_locked_to_port) {
 		// we want falling edge
 		if(!CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port])){
 			// it should be all zeros, meaning it should last about 930us
 			// so sample once every 10us and check to see if is zero for
 			// all that time
 			bool errorflag = false;
-			for(int i = 0; i < 70; i++){
+			/*for(int i = 0; i < 70; i++){
 				//SET_BIT(PORTC, 1);
 				//CLR_BIT(PORTC, 1);
 				//SET_BIT(PORTC, 1);
@@ -112,11 +115,11 @@ void MultiplexedComms::incoming_data_blocking(uint8_t port) {
 					break;
 				}
 				_delay_us(10);
-			}
+			}*/
 			if (!errorflag) {
 				// no errors, so continue
 				// wait until end of start byte
-				while(!CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port]));
+				//while(!CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port]));
 
 				// inform the multiplexed comms module we have
 				// incoming data on this port
@@ -124,6 +127,7 @@ void MultiplexedComms::incoming_data_blocking(uint8_t port) {
 					set_current_port(port);
 				start_rx();
 			}
+
 
 		}
 
@@ -202,7 +206,7 @@ void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t d
 
 	// spin until we have stopped receiving or we are receiving but
 	// on the correct port
-	while(_rx_state != RX_IDLE && (_current_port != port));
+	while(_rx_state != RX_IDLE && (_current_port != port) && !_locked_to_port);
 
 	if(_current_port != port)
 		set_current_port(port);
@@ -233,6 +237,99 @@ void MultiplexedComms::init(void (*rx_packet_callback)(uint8_t rx_port, volatile
 	_enable_incoming_data_interrupts_func();
 }
 
-bool MultiplexedComms::snoop_port(uint8_t port) {
-	return (*_port_snoop_pins[port] & (1<<_port_snoop_pinnos[port]));
+uint8_t MultiplexedComms::get_num_ports(void) {
+	return _num_ports;
 }
+
+bool MultiplexedComms::snoop_port(uint8_t port, bool orientation) {
+	if(orientation) {
+		return (*_port_snoop_orientation_pins[port] & (1<<_port_snoop_orientation_pinnos[port]));
+	} else {
+		return (*_port_snoop_pins[port] & (1<<_port_snoop_pinnos[port]));
+	}
+}
+
+void MultiplexedComms::lock_to_port(uint8_t port) {
+	_locked_to_port = true;
+
+	if(_current_port != port)
+		set_current_port(port);
+}
+
+void MultiplexedComms::unlock_from_port(void) {
+	_locked_to_port = false;
+}
+
+Packet::Packet(uint8_t* data_in, uint8_t data_length_in) {
+	data = data_in;
+	data_length = data_length_in;
+}
+
+bool Packet::needs_ack(void) {
+	if(CHECK_BIT(data[1], 1))
+		return true;
+	else
+		return false;
+}
+
+uint8_t Packet::get_command(void) {
+	return data[2];
+}
+
+bool Packet::is_ack(void) {
+	if(CHECK_BIT(data[1], 3))
+		return true;
+	else
+		return false;
+}
+
+void ReliableComms::init(MultiplexedComms mux_comms_in) {
+	_mux_comms = mux_comms_in;
+}
+
+comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet) {
+	// check to see if something is connected to this port (is pulled high)
+	if(_mux_comms.snoop_port(port, false) || _mux_comms.snoop_port(port, true)) {
+		// if something is connected then attempt to transmit on this port
+
+		// check to see if we need an ACK
+		if (packet->needs_ack()) {
+			waiting_for_ack = true;
+			_got_ack_flag = false;
+			_mux_comms.lock_to_port(port);
+			for (uint8_t retry = 0; retry < _max_retries; retry++) {
+				_mux_comms.send_data_blocking(port, packet.data, packet.data_length);
+				// keep checking timer values and wait until we get an ACK or timeout
+				for (uint8_t delay_i = 0; delay_i < 100; delay_i++) {
+					if(got_ack_flag) {
+						break;
+					}
+					_delay_us(10);
+				}
+				if(got_ack_flag)
+					break;
+			}
+			waiting_for_ack = false;
+			_mux_comms.unlock_from_port();
+
+
+			if(got_ack_flag)
+				return COMMS_SUCCESS;
+			else
+				return COMMS_ERROR_TIMEOUT;
+		} else {
+			_mux_comms.send_data_blocking(port, packet.data, packet.data_length);
+			return COMMS_SUCCESS;
+		}
+	} else {
+		return COMMS_ERROR_NOTCONNECTED;
+	}
+}
+
+
+uint8_t ReliableComms::rx_ack(uint8_t port, Packet* packet) {
+	if(waiting_for_ack) {
+		got_ack_flag = true;
+	}
+}
+

@@ -7,6 +7,21 @@
 
 #define MAX_PACKET_LEN	50
 
+
+
+enum comms_status_t {
+	COMMS_SUCCESS,
+	COMMS_ERROR_TIMEOUT,
+	COMMS_ERROR_NOTCONNECTED,
+};
+
+
+// --- commands begin
+
+
+
+// --- commands end
+
 class USART
 {
 public:
@@ -40,7 +55,7 @@ typedef enum ReceiveState_t { RX_IDLE, POSSIBLE_RX_DETECTED, RX_ACTIVE } Receive
 class MultiplexedComms
 {
 public:
-	MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t * const * port_snoop_ports_in, const uint8_t* port_snoop_pins_in);
+	MultiplexedComms(USART* usart, uint8_t num_ports, volatile uint8_t * const * port_snoop_ports_in, const uint8_t* port_snoop_pins_in, volatile uint8_t * const * port_snoop_orientation_pins_in, const uint8_t* port_snoop_orientation_pinnos_in);
 	void init(void (*rx_packet_callback)(uint8_t, volatile uint8_t*, uint8_t), void (*enable_incoming_data_interrupts_func)(void), void (*disable_incoming_data_interrupts_func)(void), void (*set_mux_port_in)(uint8_t));
 	void incoming_data_blocking(uint8_t port);
 	//void imcoming_data_async(uint8_t port);
@@ -48,12 +63,17 @@ public:
 	void rx_byte(uint8_t byte_in);
 	void timer_ms_tick(void);
 	volatile uint8_t** send_queues;
+	bool snoop_port(uint8_t port, bool orientation);
+	uint8_t get_num_ports(void);
+	void lock_to_port(uint8_t port);
+	void unlock_from_port(void);
+
 private:
 	void set_current_port(uint8_t port);
 	void start_rx(void);
 	void finish_rx(void);
-	bool snoop_port(uint8_t port);
 
+	volatile bool _locked_to_port;
 
 	volatile uint8_t _num_ports;
 	USART* _usart;
@@ -74,18 +94,47 @@ private:
 	volatile rx_packet_t _current_rx_packet;
 	volatile uint8_t * const* _port_snoop_pins;
 	const uint8_t * _port_snoop_pinnos;
+	volatile uint8_t * const* _port_snoop_orientation_pins;
+	const uint8_t * _port_snoop_orientation_pinnos;
+
+
 
 	void (*_rx_packet_callback)(uint8_t, volatile uint8_t*, uint8_t);
 	void (*_enable_incoming_data_interrupts_func)(void);
 	void (*_disable_incoming_data_interrupts_func)(void);
 	void (*_set_mux_port_func)(uint8_t);
 
+
+
 };
 
-class ReliableComms
+static class Packet
 {
-	static uint8_t send_packet(uint8_t port, uint8_t* data, uint8_t data_length);
-	static uint8_t rx_ack(uint8_t port, uint8_t* data, uint8_t data_length);
+public:
+
+	uint8_t* data;
+	uint8_t data_length;
+
+
+	Packet(uint8_t* data_in, uint8_t data_length_in);
+	bool needs_ack(void);
+	bool is_ack(void);
+	uint8_t get_command(void);
+};
+
+static class ReliableComms
+{
+public:
+	static void init(MultiplexedComms mux_comms_in);
+	static comms_status_t send_packet(uint8_t port, uint8_t* data, uint8_t data_length);
+	static uint8_t rx_ack(uint8_t port, Packet* packet);
+
+	volatile bool waiting_for_ack;
+	static volatile bool got_ack_flag;
+private:
+	static const uint8_t _max_retries = 10;
+
+	static MultiplexedComms _mux_comms;
 };
 
 #endif /* COMMSLOW_HPP_ */

@@ -19,9 +19,13 @@ USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 const uint8_t num_ports = 6;
 volatile uint8_t * const port_snoop_pins[] = { &PINB, &PINB, &PINB, &PINB, &PINB, &PIND };
 const uint8_t port_snoop_pinsnos[] = { 0, 1, 2, 3, 4, 6 };
+
+volatile uint8_t * const port_snoop_orientation_pins[] = { &PINC, &PINC, &PINC, &PINC, &PINC, &PINC };
+const uint8_t port_snoop_orientation_pinsnos[] = { 2, 3, 4, 5, 6, 7 };
+
 volatile bool prev_pinchange_values[num_ports];
 
-MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoop_pinsnos);
+MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoop_pinsnos, port_snoop_orientation_pins, port_snoop_orientation_pinsnos);
 
 
 
