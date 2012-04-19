@@ -12,9 +12,11 @@
 #include "serialcomms.hpp"
 #include "timer.hpp"
 
-//#define DEBUG_SENDER
+#include "debug.hpp"
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
+
+
 
 const uint8_t num_ports = 6;
 volatile uint8_t * const port_snoop_pins[] = { &PINB, &PINB, &PINB, &PINB, &PINB, &PIND };
@@ -24,9 +26,11 @@ volatile uint8_t * const port_snoop_orientation_pins[] = { &PINC, &PINC, &PINC, 
 const uint8_t port_snoop_orientation_pinsnos[] = { 2, 3, 4, 5, 6, 7 };
 
 volatile bool prev_pinchange_values[num_ports];
+//volatile bool prev_pinchange_orientation_values[num_ports];
 
 MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoop_pinsnos, port_snoop_orientation_pins, port_snoop_orientation_pinsnos);
 
+ReliableComms reliable_comms(&multiplexedComms);
 
 
 
@@ -43,6 +47,7 @@ volatile uint16_t timer_test_counter = 0;
 
 
 void pinchange_interrupt(void) {
+
 	/* Pin change interrupt issued when a change is detected on any of masked PCINT0 pins */
 	// check each port to determine which triggered the pinchange interrupt
 	// might need to store previous state of each pin and compare to determine which one caused
@@ -59,7 +64,20 @@ void pinchange_interrupt(void) {
 			prev_pinchange_values[port_i] = false;
 		}
 	}
+
+	/*for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
+		if (CHECK_BIT(*port_snoop_orientation_pins[port_i], port_snoop_orientation_pinsnos[port_i])) {
+			prev_pinchange_orientation_values[port_i] = true;
+		} else {
+			if(prev_pinchange_orientation_values[port_i] == true) {
+				port = port_i;
+			}
+			prev_pinchange_orientation_values[port_i] = false;
+		}
+	}*/
+
 	if (port != -1) {
+
 		multiplexedComms.incoming_data_blocking(port);
 	}
 }
@@ -114,6 +132,13 @@ void pinchange_interrupts_enable(void) {
 			prev_pinchange_values[port_i] = false;
 		}
 	}
+	/*for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
+		if(CHECK_BIT(*port_snoop_pins[port_i], port_snoop_pinsnos[port_i])) {
+			prev_pinchange_orientation_values[port_i] = true;
+		} else {
+			prev_pinchange_orientation_values[port_i] = false;
+		}
+	}*/
 
 }
 
@@ -145,14 +170,26 @@ void set_mux_port(uint8_t port) {
 
 void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8_t rx_packet_length) {
 	//I will have it from length onwards (Excluding length)
-	send_test_bytes = true;
-	test_bytes_port = rx_port;
-	test_bytes_len = rx_packet_length + 2;
-	test_bytes = (uint8_t*)malloc(test_bytes_len * sizeof(uint8_t));
-	test_bytes[0] = 0x00;
-	test_bytes[1] = rx_packet_length;
-	for (int i = 2; i < test_bytes_len; i++)
-		test_bytes[i] = rx_packet[i-2];
+	/*dbgprintf("Got packet from port %d, length is %d, packet:", rx_port, rx_packet_length);
+	for(int i = 0; i < rx_packet_length; i++)
+		dbgprintf(" %d", rx_packet[i]);
+	dbgprintf("\n");*/
+
+	Packet packet((uint8_t*)rx_packet, rx_packet_length);
+	if(packet.is_ack()) {
+		//dbgprintf("Packet is ack\n");
+		reliable_comms.rx_ack(rx_port, &packet);
+	} else if(packet.requires_ack()){
+		send_test_bytes = true;
+		test_bytes_port = rx_port;
+
+		/*send_test_bytes = true;
+		test_bytes_port = rx_port;
+		test_bytes_len = rx_packet_length;
+		test_bytes = (uint8_t*)malloc(test_bytes_len * sizeof(uint8_t));
+		for (int i = 2; i < test_bytes_len; i++)
+			test_bytes[i] = rx_packet[i];*/
+	}
 }
 
 
@@ -170,7 +207,8 @@ int main(void) {
 
 	setup_pinchange_interrupts();
 	setup_mux();
-	USART0.init();
+	USART0.init_76800();
+	init_debug();
 	multiplexedComms.init(rx_packet_callback_func, pinchange_interrupts_enable, pinchange_interrupts_disable, set_mux_port);
 	millisecond_timer_enable();
 	sei();
@@ -195,18 +233,32 @@ int main(void) {
 
 
 	while(true) {
-#ifdef DEBUG_SENDER
-		uint8_t t_bytes[] = { 0x00, 4, 12, 13, 14, 15 };
-		multiplexedComms.send_data_blocking(0, t_bytes, 6);
-		_delay_ms(100);
+
+#if 1
+		dbgprintf("Making packet\n");
+		uint8_t t_bytes[] = { Packet::make_packet_flags(false, true, false, false, false), 4, 12, 13, 14, 15 };
+
+		Packet rx_packet(t_bytes, 6);
+		dbgprintf("Packet made\n");
+		dbgprintf("Beginning send packet\n");
+		uint8_t return_code = reliable_comms.send_packet(1, &rx_packet);
+		dbgprintf("Packet sent with return code %d\n", return_code);
+
+
+		_delay_ms(1000);
 #endif
+#if 0
 		if (send_test_bytes) {
 			send_test_bytes = false;
-			//uint8_t data_to_send[] = { 0x00, 0x01, 0x03 };
+			uint8_t data_to_send[] = { Packet::make_packet_flags(false, false, false, true, false), COMMAND_ACK };
 
-			multiplexedComms.send_data_blocking(test_bytes_port, (uint8_t*)test_bytes, test_bytes_len);
-			free((void*)test_bytes);
+			Packet packet(data_to_send, 2);
+			reliable_comms.send_packet(test_bytes_port, &packet);
+			//multiplexedComms.send_data_blocking(test_bytes_port, (uint8_t*)test_bytes, test_bytes_len);
+			//free((void*)test_bytes);
 		}
+#endif
 	}
+
 
 }

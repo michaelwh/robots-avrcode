@@ -18,7 +18,7 @@ enum comms_status_t {
 
 // --- commands begin
 
-
+#define COMMAND_ACK 0x01
 
 // --- commands end
 
@@ -26,7 +26,9 @@ class USART
 {
 public:
 	USART(volatile uint8_t * UBRRnH, volatile uint8_t * UBRRnL, volatile uint8_t * UCSRnA, volatile uint8_t * UCSRnB, volatile uint8_t * UCSRnC, volatile uint8_t * UDRn,  uint8_t UDREn, uint8_t U2Xn);
-	void init();
+	void init_9600();
+	void init_38400();
+	void init_76800();
 	void send_blocking(uint8_t data);
 	void enable_rx(void);
 	void disable_rx(void);
@@ -108,7 +110,8 @@ private:
 
 };
 
-static class Packet
+
+class Packet
 {
 public:
 
@@ -117,24 +120,37 @@ public:
 
 
 	Packet(uint8_t* data_in, uint8_t data_length_in);
-	bool needs_ack(void);
-	bool is_ack(void);
+
 	uint8_t get_command(void);
+
+	static uint8_t make_packet_flags(bool is_network, bool requires_ack, bool requires_global_ack, bool is_ack, bool is_global_ack);
+
+	bool is_network(void);
+	bool requires_ack(void);
+	bool requires_global_ack(void);
+	bool is_ack(void);
+	bool is_global_ack(void);
+
+	void set_is_network(bool is_network);
+	void set_requires_ack(bool requires_ack);
+	void set_requires_global_ack(bool requires_global_ack);
+	void set_is_ack(bool is_ack);
+	void set_is_global_ack(bool is_global_ack);
 };
 
-static class ReliableComms
+class ReliableComms
 {
 public:
-	static void init(MultiplexedComms mux_comms_in);
-	static comms_status_t send_packet(uint8_t port, uint8_t* data, uint8_t data_length);
-	static uint8_t rx_ack(uint8_t port, Packet* packet);
+	 ReliableComms(MultiplexedComms* mux_comms_in);
+	 comms_status_t send_packet(uint8_t port, Packet* packet);
+	 void rx_ack(uint8_t port, Packet* packet);
 
-	volatile bool waiting_for_ack;
-	static volatile bool got_ack_flag;
+	 volatile bool waiting_for_ack;
+	 volatile bool got_ack_flag;
 private:
-	static const uint8_t _max_retries = 10;
+	uint8_t _max_retries;
 
-	static MultiplexedComms _mux_comms;
+	MultiplexedComms* _mux_comms;
 };
 
 #endif /* COMMSLOW_HPP_ */

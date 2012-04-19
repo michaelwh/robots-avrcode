@@ -8,8 +8,7 @@
 #include "serialcomms.hpp"
 #include "pinutil.hpp"
 #include "timer.hpp"
-
-
+#include "debug.hpp"
 
 /* USART member functions */
 
@@ -24,7 +23,7 @@ USART::USART(volatile uint8_t * UBRRnH, volatile uint8_t * UBRRnL, volatile uint
 	_U2Xn = U2Xn;
 }
 
-void USART::init() {
+void USART::init_9600() {
 
 	/* Set baud rate */
 	//unsigned int ubrr = F_CPU/16/baud-1;
@@ -45,6 +44,51 @@ void USART::init() {
 	/* Set frame format: 8 data, 1 stop bit */
 	*_UCSRnC = (1<<UCSZ00)|(1<<UCSZ01);
 }
+
+void USART::init_38400() {
+
+	/* Set baud rate */
+	//unsigned int ubrr = F_CPU/16/baud-1;
+	#define BAUD 38400
+	#include <util/setbaud.h>
+
+	//*_UBRRnH = (unsigned char)(ubrr>>8);
+	//*_UBRRnL = (unsigned char)ubrr;
+	*_UBRRnH = UBRRH_VALUE;
+	*_UBRRnL = UBRRL_VALUE;
+	*_UCSRnB |= (1<<TXEN0)|(1<<RXCIE0);
+	#if USE_2X
+		*_UCSRnA |= (1 << _U2Xn);
+   	#else
+   		*_UCSRnA &= ~(1 << _U2Xn);
+   	#endif
+	//enable_rx();
+	/* Set frame format: 8 data, 1 stop bit */
+	*_UCSRnC = (1<<UCSZ00)|(1<<UCSZ01);
+}
+
+void USART::init_76800() {
+
+	/* Set baud rate */
+	//unsigned int ubrr = F_CPU/16/baud-1;
+	#define BAUD 76800
+	#include <util/setbaud.h>
+
+	//*_UBRRnH = (unsigned char)(ubrr>>8);
+	//*_UBRRnL = (unsigned char)ubrr;
+	*_UBRRnH = UBRRH_VALUE;
+	*_UBRRnL = UBRRL_VALUE;
+	*_UCSRnB |= (1<<TXEN0)|(1<<RXCIE0);
+	#if USE_2X
+		*_UCSRnA |= (1 << _U2Xn);
+   	#else
+   		*_UCSRnA &= ~(1 << _U2Xn);
+   	#endif
+	//enable_rx();
+	/* Set frame format: 8 data, 1 stop bit */
+	*_UCSRnC = (1<<UCSZ00)|(1<<UCSZ01);
+}
+
 
 void USART::send_blocking(uint8_t data)
 {
@@ -99,7 +143,7 @@ void MultiplexedComms::incoming_data_blocking(uint8_t port) {
 	/* Check to see if we are transmitting or receiving, if
 	 * we are then ignore the new data, if not then wait until
 	 * the pin goes back to normal and start receiving it */
-	if (_rx_state == RX_IDLE && (!_wish_to_transmit || port == _wish_to_transmit_port) && !_locked_to_port) {
+	if (_rx_state == RX_IDLE && (!_wish_to_transmit || port == _wish_to_transmit_port) && (!_locked_to_port || port == _current_port)) {
 		// we want falling edge
 		if(!CHECK_BIT(*_port_snoop_pins[port], _port_snoop_pinnos[port])){
 			// it should be all zeros, meaning it should last about 930us
@@ -199,6 +243,8 @@ void MultiplexedComms::finish_rx(void) {
 }
 
 void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t data_length) {
+	/* Will send data over the USART to the appropriate port. Will also take care of sending
+	 * the start byte and length byte. */
 
 	// flag that we wish to transmit data
 	_wish_to_transmit_port = port;
@@ -206,11 +252,22 @@ void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t d
 
 	// spin until we have stopped receiving or we are receiving but
 	// on the correct port
-	while(_rx_state != RX_IDLE && (_current_port != port) && !_locked_to_port);
+	while(_rx_state != RX_IDLE && (_current_port != port));
 
 	if(_current_port != port)
 		set_current_port(port);
 
+
+	// send the start byte
+	_usart->send_blocking(0x00);
+
+	_delay_us(350);
+
+	// send the data length
+	_usart->send_blocking(data_length);
+
+
+	// send the data
 	for (int i = 0; i < data_length; i++) {
 		//_delay_ms(USART_SEND_DELAY_MS);
 		_usart->send_blocking(data[i]);
@@ -250,6 +307,9 @@ bool MultiplexedComms::snoop_port(uint8_t port, bool orientation) {
 }
 
 void MultiplexedComms::lock_to_port(uint8_t port) {
+
+	while(_rx_state != RX_IDLE || _locked_to_port);
+
 	_locked_to_port = true;
 
 	if(_current_port != port)
@@ -260,65 +320,152 @@ void MultiplexedComms::unlock_from_port(void) {
 	_locked_to_port = false;
 }
 
+// ----------- PACKET METHODS
+
 Packet::Packet(uint8_t* data_in, uint8_t data_length_in) {
 	data = data_in;
 	data_length = data_length_in;
 }
 
-bool Packet::needs_ack(void) {
-	if(CHECK_BIT(data[1], 1))
-		return true;
-	else
-		return false;
-}
+
 
 uint8_t Packet::get_command(void) {
-	return data[2];
+	if(is_ack())
+		return data[1]; // TODO: Change this to appropriate data
+	else
+		return data[1];
+}
+
+
+// ------------ END PACKET METHODS
+
+// ------------ FLAGS METHODS
+
+
+bool Packet::is_network(void) {
+	return CHECK_BIT(data[0], 0);
+}
+
+bool Packet::requires_ack(void) {
+	return CHECK_BIT(data[0], 1);
+}
+
+bool Packet::requires_global_ack(void) {
+	return CHECK_BIT(data[0], 2);
 }
 
 bool Packet::is_ack(void) {
-	if(CHECK_BIT(data[1], 3))
-		return true;
-	else
-		return false;
+	return CHECK_BIT(data[0], 3);
 }
 
-void ReliableComms::init(MultiplexedComms mux_comms_in) {
+bool Packet::is_global_ack(void) {
+	return CHECK_BIT(data[0], 4);
+}
+
+void Packet::set_is_network(bool is_network) {
+	if(is_network)
+		SET_BIT(data[0], 0);
+	else
+		CLR_BIT(data[0], 0);
+}
+
+void Packet::set_requires_ack(bool requires_ack) {
+	if(requires_ack)
+		SET_BIT(data[0], 1);
+	else
+		CLR_BIT(data[0], 1);
+}
+
+void Packet::set_requires_global_ack(bool requires_global_ack) {
+	if(requires_global_ack)
+		SET_BIT(data[0], 2);
+	else
+		CLR_BIT(data[0], 2);
+}
+
+void Packet::set_is_ack(bool is_ack) {
+	if(is_ack)
+		SET_BIT(data[0], 3);
+	else
+		CLR_BIT(data[0], 3);
+}
+
+void Packet::set_is_global_ack(bool is_global_ack) {
+	if(is_global_ack)
+		SET_BIT(data[0], 4);
+	else
+		CLR_BIT(data[0], 4);
+}
+
+uint8_t Packet::make_packet_flags(bool is_network, bool requires_ack, bool requires_global_ack, bool is_ack, bool is_global_ack) {
+
+	uint8_t packet_flags = 0x00;
+	if(is_network)
+		SET_BIT(packet_flags, 0);
+
+	if(requires_ack)
+			SET_BIT(packet_flags, 1);
+
+	if(requires_global_ack)
+			SET_BIT(packet_flags, 2);
+
+	if(is_ack)
+			SET_BIT(packet_flags, 3);
+
+	if(is_global_ack)
+			SET_BIT(packet_flags, 4);
+
+	return packet_flags;
+}
+
+// ----------- END FLAGS METHODS
+
+ReliableComms::ReliableComms(MultiplexedComms* mux_comms_in) {
 	_mux_comms = mux_comms_in;
+	_max_retries = 10;
 }
 
 comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet) {
 	// check to see if something is connected to this port (is pulled high)
-	if(_mux_comms.snoop_port(port, false) || _mux_comms.snoop_port(port, true)) {
+	if(_mux_comms->snoop_port(port, false) || _mux_comms->snoop_port(port, true)) {
 		// if something is connected then attempt to transmit on this port
-
+		//dbgprintf(">Something is connected to port\n");
 		// check to see if we need an ACK
-		if (packet->needs_ack()) {
+		if (packet->requires_ack()) {
+			//dbgprintf(">ACK required\n");
 			waiting_for_ack = true;
-			_got_ack_flag = false;
-			_mux_comms.lock_to_port(port);
+			got_ack_flag = false;
+			//dbgprintf(">Locking to port\n");
+			//_mux_comms->lock_to_port(port);
+			//dbgprintf(">Locked to port\n");
 			for (uint8_t retry = 0; retry < _max_retries; retry++) {
-				_mux_comms.send_data_blocking(port, packet.data, packet.data_length);
+				//dbgprintf(">Sending (retry %d of %d)\n", retry, _max_retries);
+				_mux_comms->send_data_blocking(port, packet->data, packet->data_length);
+				//dbgprintf(">Sent (retry %d of %d)\n", retry, _max_retries);
 				// keep checking timer values and wait until we get an ACK or timeout
 				for (uint8_t delay_i = 0; delay_i < 100; delay_i++) {
 					if(got_ack_flag) {
+						//dbgprintf(">Got ack flag!\n");
 						break;
 					}
-					_delay_us(10);
+					_delay_us(100);
 				}
 				if(got_ack_flag)
 					break;
 			}
 			waiting_for_ack = false;
-			_mux_comms.unlock_from_port();
+			//_mux_comms->unlock_from_port();
 
 
-			if(got_ack_flag)
+			if(got_ack_flag) {
+				got_ack_flag = false;
 				return COMMS_SUCCESS;
+			}
 			else
+				//dbgprintf(">Timeout!");
 				return COMMS_ERROR_TIMEOUT;
 		} else {
-			_mux_comms.send_data_blocking(port, packet.data, packet.data_length);
+			_mux_comms->send_data_blocking(port, packet->data, packet->data_length);
 			return COMMS_SUCCESS;
 		}
 	} else {
@@ -327,7 +474,7 @@ comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet) {
 }
 
 
-uint8_t ReliableComms::rx_ack(uint8_t port, Packet* packet) {
+void ReliableComms::rx_ack(uint8_t port, Packet* packet) {
 	if(waiting_for_ack) {
 		got_ack_flag = true;
 	}
