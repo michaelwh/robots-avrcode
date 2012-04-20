@@ -142,13 +142,25 @@ class ReliableComms
 {
 public:
 	 ReliableComms(MultiplexedComms* mux_comms_in);
-	 comms_status_t send_packet(uint8_t port, Packet* packet);
+
+	 //! Function to send packets to a specified port
+	 /*! Sends a packet to the specified port. If the requires_ack flag is set
+	  * on the packet then this function will retry sending the packet until either
+	  * a maximum number of retries is met or an ack is received
+	  * Returns:
+	  * 	- COMMS_SUCCESS on success
+	  * 	- COMMS_ERROR_TIMEOUT on failure due to ack not being recieved before timeout
+	  * 	- COMMS_ERROR_NOTCONNECTED on failure due to port not being connected*/
+	 comms_status_t send_packet(uint8_t port, Packet* packet, const uint8_t max_retries = 10);
+
 	 void rx_ack(uint8_t port, Packet* packet);
+	 bool is_port_connected(uint8_t port);
+	 bool get_port_orientation(uint8_t port);
 
 	 volatile bool waiting_for_ack;
 	 volatile bool got_ack_flag;
 private:
-	uint8_t _max_retries;
+
 
 	MultiplexedComms* _mux_comms;
 };

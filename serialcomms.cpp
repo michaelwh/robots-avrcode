@@ -422,23 +422,23 @@ uint8_t Packet::make_packet_flags(bool is_network, bool requires_ack, bool requi
 
 ReliableComms::ReliableComms(MultiplexedComms* mux_comms_in) {
 	_mux_comms = mux_comms_in;
-	_max_retries = 10;
 }
 
-comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet) {
+comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet, const uint8_t max_retries) {
 	// check to see if something is connected to this port (is pulled high)
 	if(_mux_comms->snoop_port(port, false) || _mux_comms->snoop_port(port, true)) {
 		// if something is connected then attempt to transmit on this port
 		//dbgprintf(">Something is connected to port\n");
 		// check to see if we need an ACK
 		if (packet->requires_ack()) {
+
 			//dbgprintf(">ACK required\n");
 			waiting_for_ack = true;
 			got_ack_flag = false;
 			//dbgprintf(">Locking to port\n");
 			//_mux_comms->lock_to_port(port);
 			//dbgprintf(">Locked to port\n");
-			for (uint8_t retry = 0; retry < _max_retries; retry++) {
+			for (uint8_t retry = 0; retry < max_retries; retry++) {
 				//dbgprintf(">Sending (retry %d of %d)\n", retry, _max_retries);
 				_mux_comms->send_data_blocking(port, packet->data, packet->data_length);
 				//dbgprintf(">Sent (retry %d of %d)\n", retry, _max_retries);
@@ -448,7 +448,7 @@ comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet) {
 						//dbgprintf(">Got ack flag!\n");
 						break;
 					}
-					_delay_us(100);
+					_delay_us(40);
 				}
 				if(got_ack_flag)
 					break;
@@ -473,6 +473,14 @@ comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet) {
 	}
 }
 
+bool ReliableComms::is_port_connected(uint8_t port) {
+/* Returns true if the port is connected, false otherwise. */
+	return _mux_comms->snoop_port(port, false);
+}
+
+bool ReliableComms::get_port_orientation(uint8_t port) {
+	return _mux_comms->snoop_port(port, true);
+}
 
 void ReliableComms::rx_ack(uint8_t port, Packet* packet) {
 	if(waiting_for_ack) {
