@@ -13,6 +13,8 @@
 #include "timer.hpp"
 #include "config.hpp"
 #include "debug.hpp"
+#include "commands.hpp"
+#include "pwm.hpp"
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
@@ -202,6 +204,7 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 
 int main(void) {
 	cli();
+	PWM::init();
 	SET_BIT(DDRC, 0);
 	SET_BIT(PORTC, 0);
 	SET_BIT(DDRC, 1);
@@ -219,6 +222,7 @@ int main(void) {
 	multiplexedComms.init(rx_packet_callback_func, pinchange_interrupts_enable, pinchange_interrupts_disable, set_mux_port);
 	millisecond_timer_enable();
 	sei();
+	dbgprintf("Starting up.");
 
 //	while(false) {
 //		uint16_t current_timer_val;
@@ -241,7 +245,7 @@ int main(void) {
 		cmd.request_id(1);
 	while(true) {
 
-#if 1
+#if 0
 		dbgprintf("Making packet\n");
 		uint8_t t_bytes[] = { Packet::make_packet_flags(false, true, false, false, false), 4, 12, 13, 14, 15 };
 
@@ -254,7 +258,7 @@ int main(void) {
 
 		_delay_ms(1000);
 #endif
-#if 0
+#if 1
 		if (send_test_bytes) {
 			send_test_bytes = false;
 			uint8_t data_to_send[] = { Packet::make_packet_flags(false, false, false, true, false), COMMAND_ACK };
