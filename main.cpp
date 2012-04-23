@@ -11,7 +11,7 @@
 #include  "pinutil.hpp"
 #include "serialcomms.hpp"
 #include "timer.hpp"
-
+#include "config.hpp"
 #include "debug.hpp"
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
@@ -32,7 +32,7 @@ MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoo
 
 ReliableComms reliable_comms(&multiplexedComms);
 
-
+COMMAND cmd(&reliable_comms);
 
 
 /* Temp testing variables */
@@ -190,6 +190,13 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 		for (int i = 2; i < test_bytes_len; i++)
 			test_bytes[i] = rx_packet[i];*/
 	}
+	if(rx_packet[1] == REQUEST_ID) {
+		cmd.return_id(rx_port);
+	}
+	else if(rx_packet[1] == RETURN_ID) {
+		dbgprintf("ID returned %u\n", rx_packet[2]);
+	}
+
 }
 
 
@@ -230,8 +237,8 @@ int main(void) {
 //		}
 //	}
 
-
-
+	if(cmd._ID == 0)
+		cmd.request_id(1);
 	while(true) {
 
 #if 1
@@ -259,6 +266,4 @@ int main(void) {
 		}
 #endif
 	}
-
-
 }
