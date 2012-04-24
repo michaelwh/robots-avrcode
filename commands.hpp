@@ -1,0 +1,52 @@
+/*
+ * commands.hpp
+ *
+ *  Created on: 7 Apr 2012
+ *      Author: rt5g11@soton.ac.uk
+ */
+
+#ifndef COMMANDS_HPP_
+#define COMMANDS_HPP_
+
+#include "config.hpp"
+
+enum ERRORS{
+	FAIL_REQUEST,
+	FAIL,
+	SUCCESS,
+};
+
+class COMMAND {
+	private:
+
+	volatile uint8_t _current_cmd;
+	volatile ReliableComms _realiable_comms;
+	public:
+	volatile uint8_t _ID;
+	volatile uint8_t _last_packet_ID_received[MAX_BLOCKS_CONNECTED];
+	volatile uint8_t _last_source_ID_received;
+	volatile uint8_t _last_destination_ID_received;
+	volatile uint8_t _last_packet_ID_sent;
+	volatile uint8_t _current_port;
+	volatile uint8_t _block_connected[MAX_BLOCKS_CONNECTED];
+	/*flag[0] = Slave or Master mode
+	*flag[1] = Serial 0 interrupted
+	*flag[2] = Serial 1 interrupted*/
+	static uint8_t _flags;
+	/*_buffer is a shared buffer for reading the commands
+	 * */
+	static uint8_t *_buffer;
+	static uint8_t _buffer_length;
+
+	COMMAND(ReliableComms* rel_comms );
+	ERRORS update_connected();
+	ERRORS request_id(uint8_t port);
+	ERRORS return_id(uint8_t port);
+	uint8_t return_routing(uint8_t packet_id, uint8_t destination);
+	uint8_t analize_packet();
+	uint8_t retransmit_packet(uint8_t port);
+};
+
+
+
+#endif /* COMMANDS_HPP_ */
