@@ -95,7 +95,7 @@ ISR(USART0_RX_vect) {
 	multiplexedComms.rx_byte(rx_byte);
 }
 
-ISR(TIMER1_COMPA_vect) {
+ISR(TIMER0_COMPA_vect) {
 	//SET_BIT(PORTC, 1);
 	//CLR_BIT(PORTC, 1);
 	multiplexedComms.timer_ms_tick();
@@ -190,6 +190,15 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 		for (int i = 2; i < test_bytes_len; i++)
 			test_bytes[i] = rx_packet[i];*/
 	}
+
+
+//	if(rx_packet_length >= 2 && rx_packet[1] == REQUEST_ID) {
+//		cmd.return_id(rx_port);
+//	}
+//	else if(rx_packet_length >= 3 && rx_packet[1] == RETURN_ID) {
+//		dbgprintf("ID returned %u\n", rx_packet[2]);
+//	}
+
 }
 
 
@@ -213,6 +222,7 @@ int main(void) {
 	millisecond_timer_enable();
 	sei();
 
+
 //	while(false) {
 //		uint16_t current_timer_val;
 //		uint16_t current_ticks;
@@ -231,6 +241,8 @@ int main(void) {
 //	}
 
 
+	//if(cmd._ID == 0)
+	//	cmd.request_id(1);
 
 	while(true) {
 
