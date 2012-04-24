@@ -20,7 +20,7 @@ class COMMAND {
 	private:
 
 	volatile uint8_t _current_cmd;
-	volatile ReliableComms _realiable_comms;
+	ReliableComms* _realiable_comms;
 	public:
 	volatile uint8_t _ID;
 	volatile uint8_t _last_packet_ID_received[MAX_BLOCKS_CONNECTED];
@@ -32,11 +32,11 @@ class COMMAND {
 	/*flag[0] = Slave or Master mode
 	*flag[1] = Serial 0 interrupted
 	*flag[2] = Serial 1 interrupted*/
-	static uint8_t _flags;
+	uint8_t _flags;
 	/*_buffer is a shared buffer for reading the commands
 	 * */
-	static uint8_t *_buffer;
-	static uint8_t _buffer_length;
+	uint8_t *_buffer;
+	uint8_t _buffer_length;
 
 	COMMAND(ReliableComms* rel_comms );
 	ERRORS update_connected();

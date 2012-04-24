@@ -39,18 +39,18 @@ COMMAND::COMMAND(ReliableComms *rel_comms) {
 	//Last packet ID that has been sent (Could do without it).
 	_last_packet_ID_sent = DEFAULT_FLAGS;
 	//This array holds the last packets ID received from the blocks attached to the module
-	_last_packet_ID_received = (uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
+	//_last_packet_ID_received = (volatile uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
 	//This array holds the IDS of the blocks attached to the module
-	_block_connected = (uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
+	//_block_connected = (volatile uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
 	update_connected();
 }
 
 ERRORS COMMAND::update_connected() {
 	//Buffer where the request id command stores its data.
-	uint8_t *data = malloc(sizeof(*data));
-	uint8_t port;
+	uint8_t *data = (uint8_t*)malloc(sizeof(*data));
+	uint8_t port = 0;
 	for(; port < MAX_BLOCKS_CONNECTED; port++) {
-		if(_realiable_comms.is_port_connected(port)) {
+		if(_realiable_comms->is_port_connected(port)) {
 			if(request_id(port) == FAIL_REQUEST) {
 				return FAIL;
 			}
@@ -70,7 +70,7 @@ ERRORS COMMAND::request_id(uint8_t port) {
 	_current_port = port;
 	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), _current_cmd};
 	Packet rx_packet(buffer,2);
-	if(_realiable_comms.send_packet(port,&rx_packet) != COMMS_SUCCESS) {
+	if(_realiable_comms->send_packet(port,&rx_packet) != COMMS_SUCCESS) {
 		return FAIL_REQUEST;
 	}
 		return SUCCESS;
@@ -80,14 +80,14 @@ ERRORS COMMAND::request_id(uint8_t port) {
  * */
 ERRORS COMMAND::return_id(uint8_t port) {
 	_current_cmd = REQUEST_ID;
-	if(!_realiable_comms.is_port_connected(port))
+	if(!_realiable_comms->is_port_connected(port))
 	{
 		update_connected();
 		return FAIL;
 	}
 	uint8_t buffer[] = {Packet::make_packet_flags(false,false,false,false,false), REQUEST_ID, _ID};
 	Packet rx_packet(buffer,3);
-	if(_realiable_comms.send_packet(port,&rx_packet) != COMMS_SUCCESS) {
+	if(_realiable_comms->send_packet(port,&rx_packet) != COMMS_SUCCESS) {
 		return FAIL;
 	}
 	else
