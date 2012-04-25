@@ -318,10 +318,16 @@ int main(void) {
 		dbgprintf("Requesting ID\n");
 		dbgprintf("Returned: %d\n", cmd.request_id(1));
 	}
-
+	uint16_t value = PWM_MIN;
 	while(true) {
-
 		cmd.command_update();
+		PWM::BottomServoMove(value);
+		if(value == PWM_MAX)
+			value = PWM_MIN;
+		value++;
+		_delay_ms(1);
+
+
 
 #if 0
 		dbgprintf("Making packet\n");

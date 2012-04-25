@@ -20,6 +20,13 @@
 #define BLOCK_NOT_CONNECTED 0x00
 #define USART_SEND_DELAY_MS	10
 #define MAX_PACKET_LEN	25
+
+#define PWM_INIT_VALUE 500
+#define TOP_FREQUENCY 20000 //This should give the proper desired frequency
+#define PWM_MAX 2000
+#define PWM_MIN 500
+#define MESSAGE_ERROR 0xFF
+#define MESSAGE_OK 0x00
 //Commands
 
 #define REQUEST_ID 			0x01

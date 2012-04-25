@@ -4,6 +4,7 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include "pwm.hpp"
+#include "config.hpp"
 /*
  * pwm.cpp
  *
@@ -11,12 +12,6 @@
  *      Author: rt5g11
  */
 
-#define PWM_INIT_VALUE 500
-#define TOP_FREQUENCY 20000 //This should give the proper desired frequency
-#define PWM_MAX 2000
-#define PWM_MIN 500
-#define MESSAGE_ERROR 0xFF
-#define MESSAGE_OK 0x00
 
 void PWM::init(){
 	//Sets the prescaler of the timer to
