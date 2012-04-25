@@ -29,7 +29,7 @@ void millisecond_timer_enable(void) {
 	// enable clear on top compare mode
 	// also enable timer and set clock prescaler to 8
 	TCCR0A = (1<<WGM01);
-	TCCR1B = (1<<CS00)|(1<<CS01);
+	TCCR0B = (1<<CS00)|(1<<CS01);
 }
 
 //uint32_t get_us_elapsed(uint16_t start_timer_val, uint16_t current_timer_val, uint16_t num_ms_ticks) {

@@ -347,19 +347,31 @@ bool Packet::is_network(void) {
 }
 
 bool Packet::requires_ack(void) {
-	return CHECK_BIT(data[0], 1);
+	if(data_length >= 1)
+		return CHECK_BIT(data[0], 1);
+	else
+		return false;
 }
 
 bool Packet::requires_global_ack(void) {
-	return CHECK_BIT(data[0], 2);
+	if(data_length >= 1)
+		return CHECK_BIT(data[0], 2);
+	else
+		return false;
 }
 
 bool Packet::is_ack(void) {
-	return CHECK_BIT(data[0], 3);
+	if(data_length >= 1)
+		return CHECK_BIT(data[0], 3);
+	else
+		return false;
 }
 
 bool Packet::is_global_ack(void) {
-	return CHECK_BIT(data[0], 4);
+	if(data_length >= 1)
+		return CHECK_BIT(data[0], 4);
+	else
+		return false;
 }
 
 void Packet::set_is_network(bool is_network) {
@@ -426,7 +438,7 @@ ReliableComms::ReliableComms(MultiplexedComms* mux_comms_in) {
 
 comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet, const uint8_t max_retries) {
 	// check to see if something is connected to this port (is pulled high)
-	if(_mux_comms->snoop_port(port, false) || _mux_comms->snoop_port(port, true)) {
+	if(is_port_connected(port)) {
 		// if something is connected then attempt to transmit on this port
 		//dbgprintf(">Something is connected to port\n");
 		// check to see if we need an ACK
@@ -439,9 +451,9 @@ comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet, const ui
 			//_mux_comms->lock_to_port(port);
 			//dbgprintf(">Locked to port\n");
 			for (uint8_t retry = 0; retry < max_retries; retry++) {
-				//dbgprintf(">Sending (retry %d of %d)\n", retry, _max_retries);
+				//dbgprintf(">Sending (retry %d of %d)\n", retry, max_retries);
 				_mux_comms->send_data_blocking(port, packet->data, packet->data_length);
-				//dbgprintf(">Sent (retry %d of %d)\n", retry, _max_retries);
+				//dbgprintf(">Sent (retry %d of %d)\n", retry, max_retries);
 				// keep checking timer values and wait until we get an ACK or timeout
 				for (uint8_t delay_i = 0; delay_i < 100; delay_i++) {
 					if(got_ack_flag) {
@@ -469,6 +481,7 @@ comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet, const ui
 			return COMMS_SUCCESS;
 		}
 	} else {
+		//dbgprintf(">Nothing connected to port %u\n", port);
 		return COMMS_ERROR_NOTCONNECTED;
 	}
 }

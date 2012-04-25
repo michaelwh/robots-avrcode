@@ -11,7 +11,8 @@
 #include  "pinutil.hpp"
 #include "serialcomms.hpp"
 #include "timer.hpp"
-
+#include "config.hpp"
+#include "pwm.hpp"
 #include "debug.hpp"
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
@@ -56,6 +57,7 @@ void pinchange_interrupt(void) {
 	int port = -1;
 	for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
 		if (CHECK_BIT(*port_snoop_pins[port_i], port_snoop_pinsnos[port_i])) {
+
 			prev_pinchange_values[port_i] = true;
 		} else {
 			if(prev_pinchange_values[port_i] == true) {
@@ -98,8 +100,11 @@ ISR(USART0_RX_vect) {
 ISR(TIMER0_COMPA_vect) {
 	//SET_BIT(PORTC, 1);
 	//CLR_BIT(PORTC, 1);
+	SET_BIT(PORTC, 1);
+	CLR_BIT(PORTC, 1);
+	_delay_us(200);
 	multiplexedComms.timer_ms_tick();
-
+	SET_BIT(PORTC, 1);
 	//test_num_ms_elapsed++;
 	//SET_BIT(PORTC, 1);
 }
@@ -161,10 +166,10 @@ void set_mux_port(uint8_t port) {
 //	_delay_us(10);
 //	SET_BIT(PORTC, 1);
 	// least significant three bits of port should map directly onto least significant three bits of PORTA
-	SET_BIT(PORTC, 1);
-	CLR_BIT(PORTC, 1);
-	_delay_us(200);
-	SET_BIT(PORTC, 1);
+	//SET_BIT(PORTC, 1);
+	//CLR_BIT(PORTC, 1);
+	//_delay_us(200);
+	//SET_BIT(PORTC, 1);
 	PORTA = ((0xF8) & PORTA) | port;
 }
 
@@ -174,6 +179,10 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 	for(int i = 0; i < rx_packet_length; i++)
 		dbgprintf(" %d", rx_packet[i]);
 	dbgprintf("\n");*/
+	SET_BIT(PORTC, 0);
+	CLR_BIT(PORTC, 0);
+	_delay_us(200);
+	SET_BIT(PORTC, 0);
 
 	Packet packet((uint8_t*)rx_packet, rx_packet_length);
 	if(packet.is_ack()) {
@@ -213,7 +222,7 @@ int main(void) {
 		CLR_BIT(PORTC, 0);
 		SET_BIT(PORTC, 0);
 	}
-
+	PWM::init();
 	setup_pinchange_interrupts();
 	setup_mux();
 	USART0.init_76800();
