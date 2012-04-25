@@ -14,6 +14,8 @@
 #include "config.hpp"
 #include "pwm.hpp"
 #include "debug.hpp"
+#include "commands.hpp"
+#include "util.hpp"
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
@@ -34,6 +36,13 @@ MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoo
 ReliableComms reliable_comms(&multiplexedComms);
 
 
+
+
+Packet packet_queue_buffer[5];
+uint8_t port_queue_buffer[5];
+PacketRingBuffer queue(5, packet_queue_buffer, port_queue_buffer);
+
+COMMAND cmd(&reliable_comms, &queue);
 
 
 /* Temp testing variables */
@@ -79,7 +88,9 @@ void pinchange_interrupt(void) {
 	}*/
 
 	if (port != -1) {
-
+		//SET_BIT(PORTC, 0);
+		//CLR_BIT(PORTC, 0);
+		//SET_BIT(PORTC, 0);
 		multiplexedComms.incoming_data_blocking(port);
 	}
 }
@@ -97,16 +108,25 @@ ISR(USART0_RX_vect) {
 	multiplexedComms.rx_byte(rx_byte);
 }
 
+//uint16_t timer_test = 0;
+
 ISR(TIMER0_COMPA_vect) {
-	//SET_BIT(PORTC, 1);
+
 	//CLR_BIT(PORTC, 1);
-	SET_BIT(PORTC, 1);
-	CLR_BIT(PORTC, 1);
-	_delay_us(200);
+	//_delay_us(200);
 	multiplexedComms.timer_ms_tick();
-	SET_BIT(PORTC, 1);
+	//SET_BIT(PORTC, 1);
 	//test_num_ms_elapsed++;
 	//SET_BIT(PORTC, 1);
+
+//	timer_test++;
+//	if (timer_test >= 500) {
+//		timer_test = 0;
+//		if(cmd._ID == 0) {
+//			dbgprintf("Requesting ID\n");
+//			dbgprintf("Returned: %d\n", cmd.request_id(1));
+//		}
+//	}
 }
 
 void setup_pinchange_interrupts(void) {
@@ -173,42 +193,66 @@ void set_mux_port(uint8_t port) {
 	PORTA = ((0xF8) & PORTA) | port;
 }
 
+void print_packet(Packet* packet) {
+	dbgprintf("Packet length: %d, data:", packet->data_length);
+	for(int i = 0; i < packet->data_length; i++)
+		dbgprintf(" %d", packet->data[i]);
+	dbgprintf("\n");
+}
+
 void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8_t rx_packet_length) {
 	//I will have it from length onwards (Excluding length)
-	/*dbgprintf("Got packet from port %d, length is %d, packet:", rx_port, rx_packet_length);
-	for(int i = 0; i < rx_packet_length; i++)
-		dbgprintf(" %d", rx_packet[i]);
-	dbgprintf("\n");*/
-	SET_BIT(PORTC, 0);
-	CLR_BIT(PORTC, 0);
-	_delay_us(200);
-	SET_BIT(PORTC, 0);
+//	dbgprintf("Got packet from port %d, length is %d, packet:", rx_port, rx_packet_length);
+//	for(int i = 0; i < rx_packet_length; i++)
+//		dbgprintf(" %d", rx_packet[i]);
+//	dbgprintf("\n");
+	SET_BIT(PORTC, 1);
+	CLR_BIT(PORTC, 1);
+	SET_BIT(PORTC, 1);
 
 	Packet packet((uint8_t*)rx_packet, rx_packet_length);
 	if(packet.is_ack()) {
 		//dbgprintf("Packet is ack\n");
 		reliable_comms.rx_ack(rx_port, &packet);
-	} else if(packet.requires_ack()){
-		send_test_bytes = true;
-		test_bytes_port = rx_port;
+	} else {
+		bool appendret = cmd.packet_queue->append((uint8_t*)rx_packet, rx_packet_length, rx_port);
 
-		/*send_test_bytes = true;
-		test_bytes_port = rx_port;
-		test_bytes_len = rx_packet_length;
-		test_bytes = (uint8_t*)malloc(test_bytes_len * sizeof(uint8_t));
-		for (int i = 2; i < test_bytes_len; i++)
-			test_bytes[i] = rx_packet[i];*/
+		if(appendret && packet.requires_ack()){
+			//send_test_bytes = true;
+			//test_bytes_port = rx_port;
+
+			uint8_t data_to_send[] = { Packet::make_packet_flags(false, false, false, true, false), COMMAND_ACK };
+
+			Packet packet(data_to_send, 2);
+			reliable_comms.send_packet(rx_port, &packet);
+
+			/*send_test_bytes = true;
+			test_bytes_port = rx_port;
+			test_bytes_len = rx_packet_length;
+			test_bytes = (uint8_t*)malloc(test_bytes_len * sizeof(uint8_t));
+			for (int i = 2; i < test_bytes_len; i++)
+				test_bytes[i] = rx_packet[i];*/
+		}
+
+
+
+//		if(rx_packet_length >= 2 && rx_packet[1] == REQUEST_ID) {
+//			send_test_bytes = true;
+//			test_bytes_port = rx_port;
+//			//cmd.return_id(rx_port);
+//		}
+//		else if(rx_packet_length >= 3 && rx_packet[1] == RETURN_ID) {
+//			cmd._block_connected[rx_port] = rx_packet[2];
+//			dbgprintf("ID returned %u\n", rx_packet[2]);
+//		}
 	}
 
 
-//	if(rx_packet_length >= 2 && rx_packet[1] == REQUEST_ID) {
-//		cmd.return_id(rx_port);
-//	}
-//	else if(rx_packet_length >= 3 && rx_packet[1] == RETURN_ID) {
-//		dbgprintf("ID returned %u\n", rx_packet[2]);
-//	}
+
+
 
 }
+
 
 
 int main(void) {
@@ -250,12 +294,36 @@ int main(void) {
 //	}
 
 
-	//if(cmd._ID == 0)
-	//	cmd.request_id(1);
+//	Packet queue[5];
+//	PacketRingBuffer packetBuff(5, queue);
+//
+//	uint8_t t_bytes[] = { Packet::make_packet_flags(false, true, false, false, false), 4, 12, 13, 14, 15 };
+//	uint8_t t_bytes_2[] = { Packet::make_packet_flags(false, true, false, false, false), 9, 18 };
+//
+//	packetBuff.append(t_bytes, 6);
+//	packetBuff.append(t_bytes_2, 3);
+//	packetBuff.append(t_bytes_2, 3);
+//	packetBuff.append(t_bytes_2, 3);
+//	dbgprintf("Should return true %d", packetBuff.append(t_bytes_2, 3));
+//	dbgprintf("Should return false %d", packetBuff.append(t_bytes_2, 3));
+//
+//	dbgprintf("First\n");
+//	print_packet(packetBuff.peek_first());
+//	packetBuff.dequeue();
+//	dbgprintf("Should return true %d", packetBuff.append(t_bytes, 6));
+//	dbgprintf("Second\n");
+//	print_packet(packetBuff.peek_first());
+
+	if(cmd._ID == 0) {
+		dbgprintf("Requesting ID\n");
+		dbgprintf("Returned: %d\n", cmd.request_id(1));
+	}
 
 	while(true) {
 
-#if 1
+		cmd.command_update();
+
+#if 0
 		dbgprintf("Making packet\n");
 		uint8_t t_bytes[] = { Packet::make_packet_flags(false, true, false, false, false), 4, 12, 13, 14, 15 };
 
@@ -269,13 +337,21 @@ int main(void) {
 		_delay_ms(1000);
 #endif
 #if 0
+
+
+
+#endif
+#if 0
 		if (send_test_bytes) {
 			send_test_bytes = false;
-			uint8_t data_to_send[] = { Packet::make_packet_flags(false, false, false, true, false), COMMAND_ACK };
+			//dbgprintf("Sending ID\n");
 
-			Packet packet(data_to_send, 2);
-			reliable_comms.send_packet(test_bytes_port, &packet);
-			//multiplexedComms.send_data_blocking(test_bytes_port, (uint8_t*)test_bytes, test_bytes_len);
+			cmd.return_id(test_bytes_port);
+//			uint8_t data_to_send[] = { Packet::make_packet_flags(false, false, false, true, false), COMMAND_ACK };
+//
+//			Packet packet(data_to_send, 2);
+//			reliable_comms.send_packet(test_bytes_port, &packet);
+//			//multiplexedComms.send_data_blocking(test_bytes_port, (uint8_t*)test_bytes, test_bytes_len);
 			//free((void*)test_bytes);
 		}
 #endif

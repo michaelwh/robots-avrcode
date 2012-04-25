@@ -14,11 +14,12 @@
 #include "serialcomms.hpp"
 #include "commands.hpp"
 #include "config.hpp"
+#include "debug.hpp"
 
 
 
 /*COMMAND member function*/
-COMMAND::COMMAND(ReliableComms *rel_comms) {
+COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in) {
 	_realiable_comms = rel_comms;
 	//The current command issued
 	_current_cmd = DEFAULT_DATA;
@@ -42,12 +43,13 @@ COMMAND::COMMAND(ReliableComms *rel_comms) {
 	//_last_packet_ID_received = (volatile uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
 	//This array holds the IDS of the blocks attached to the module
 	//_block_connected = (volatile uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
-	update_connected();
+	//update_connected();
+	packet_queue = queue_in;
 }
 
 ERRORS COMMAND::update_connected() {
 	//Buffer where the request id command stores its data.
-	uint8_t *data = (uint8_t*)malloc(sizeof(*data));
+	//uint8_t *data = (uint8_t*)malloc(sizeof(*data));
 	uint8_t port = 0;
 	for(; port < MAX_BLOCKS_CONNECTED; port++) {
 		if(_realiable_comms->is_port_connected(port)) {
@@ -79,19 +81,45 @@ ERRORS COMMAND::request_id(uint8_t port) {
  * Neighbour to Neighbour communication
  * */
 ERRORS COMMAND::return_id(uint8_t port) {
-	_current_cmd = REQUEST_ID;
-	if(!_realiable_comms->is_port_connected(port))
-	{
-		update_connected();
-		return FAIL;
-	}
-	uint8_t buffer[] = {Packet::make_packet_flags(false,false,false,false,false), REQUEST_ID, _ID};
+	_current_cmd = RETURN_ID;
+//	if(!_realiable_comms->is_port_connected(port))
+//	{
+//		update_connected();
+//		return FAIL;
+//	}
+	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), RETURN_ID, _ID};
 	Packet rx_packet(buffer,3);
-	if(_realiable_comms->send_packet(port,&rx_packet) != COMMS_SUCCESS) {
+	if(_realiable_comms->send_packet(port, &rx_packet) != COMMS_SUCCESS) {
 		return FAIL;
 	}
 	else
-		return FAIL;
+		return SUCCESS;
+}
+
+void COMMAND::command_update() {
+	//dbgprintf("Command update, queue length: %d\n", packet_queue->length());
+	if(packet_queue->length() > 0) {
+//		dbgprintf("Command update, queue length: %d\n", packet_queue->length());
+		Packet* packet = packet_queue->peek_first();
+		uint8_t port = packet_queue->peek_first_port();
+		if(!packet->is_network() && packet->data_length >= 2) {
+			switch (packet->get_command()) {
+				case REQUEST_ID:
+					return_id(port);
+					break;
+				case RETURN_ID:
+					if(packet->data_length >= 3) {
+						_block_connected[port] = packet->data[2];
+						dbgprintf("ID returned %u\n", packet->data[2]);
+					}
+					break;
+				default:
+					break;
+			}
+		}
+
+		packet_queue->dequeue();
+	}
 }
 /*
  * Network communication, it floods the network until it finds the proper module, it requires a global acknowledge.

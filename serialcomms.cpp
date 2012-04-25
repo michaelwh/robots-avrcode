@@ -96,6 +96,7 @@ void USART::send_blocking(uint8_t data)
 	while ( !( *_UCSRnA & (1<<_UDREn)) );
 	/* Put data into buffer, sends the data */
 	*_UDRn = data;
+	while ( !( *_UCSRnA & (1<<_UDREn)) );
 }
 
 void USART::enable_rx(void) {
@@ -280,7 +281,7 @@ void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t d
 void MultiplexedComms::timer_ms_tick(void) {
 	if (_rx_state == RX_ACTIVE) {
 		_rx_timeout_timer++;
-		if (_rx_timeout_timer >= 10) {
+		if (_rx_timeout_timer >= 2) {
 			finish_rx();
 		}
 	}
@@ -327,6 +328,9 @@ Packet::Packet(uint8_t* data_in, uint8_t data_length_in) {
 	data_length = data_length_in;
 }
 
+Packet::Packet() {
+ data_length = 0;
+}
 
 
 uint8_t Packet::get_command(void) {
@@ -430,6 +434,13 @@ uint8_t Packet::make_packet_flags(bool is_network, bool requires_ack, bool requi
 	return packet_flags;
 }
 
+void Packet::copy_from_buffer(uint8_t* buffer, uint8_t buffer_length) {
+	data_length = buffer_length;
+	for(uint8_t i = 0; i < buffer_length; i++){
+		data[i] = buffer[i];
+	}
+}
+
 // ----------- END FLAGS METHODS
 
 ReliableComms::ReliableComms(MultiplexedComms* mux_comms_in) {
@@ -442,6 +453,9 @@ comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet, const ui
 		// if something is connected then attempt to transmit on this port
 		//dbgprintf(">Something is connected to port\n");
 		// check to see if we need an ACK
+		if(!packet->is_ack())
+			_delay_us(500);
+
 		if (packet->requires_ack()) {
 
 			//dbgprintf(">ACK required\n");
@@ -460,7 +474,7 @@ comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet, const ui
 						//dbgprintf(">Got ack flag!\n");
 						break;
 					}
-					_delay_us(40);
+					_delay_us(80);
 				}
 				if(got_ack_flag)
 					break;

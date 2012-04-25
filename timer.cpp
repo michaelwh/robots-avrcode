@@ -21,7 +21,7 @@ void millisecond_timer_enable(void) {
 	// set the top compare value
 	// write high then low - MUST be in this order
 	// since this is a special 16-bit write operation
-	OCR0A = 0xF9;
+	OCR0A = 0x9B;
 
 	// enable top match interrupt
 	TIMSK0 = (1<<OCIE0A);
@@ -29,7 +29,7 @@ void millisecond_timer_enable(void) {
 	// enable clear on top compare mode
 	// also enable timer and set clock prescaler to 8
 	TCCR0A = (1<<WGM01);
-	TCCR0B = (1<<CS00)|(1<<CS01);
+	TCCR0B = (1<<CS00)|(1<<CS02);
 }
 
 //uint32_t get_us_elapsed(uint16_t start_timer_val, uint16_t current_timer_val, uint16_t num_ms_ticks) {

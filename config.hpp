@@ -18,13 +18,16 @@
 #define SERIAL_1 2
 #define SERIAL_MASK 0x01
 #define BLOCK_NOT_CONNECTED 0x00
+#define USART_SEND_DELAY_MS	10
+#define MAX_PACKET_LEN	25
 //Commands
+
 #define REQUEST_ID 			0x01
 #define RETURN_ID			0x02
 #define REQUEST_ROUTING		0x03
 #define RETURN_ROUTING		0x04
 #define NETWORK_ACKNOWLEDGE 0x05
-
+#define COMMAND_ACK 		0x06
 
 
 #endif /* CONFIG_HPP_ */

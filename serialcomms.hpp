@@ -3,9 +3,7 @@
 
 #include <inttypes.h>
 
-#define USART_SEND_DELAY_MS	10
-
-#define MAX_PACKET_LEN	50
+#include "config.hpp"
 
 
 
@@ -18,7 +16,7 @@ enum comms_status_t {
 
 // --- commands begin
 
-#define COMMAND_ACK 0x01
+
 
 // --- commands end
 
@@ -118,6 +116,7 @@ public:
 	uint8_t* data;
 	uint8_t data_length;
 
+	Packet();
 
 	Packet(uint8_t* data_in, uint8_t data_length_in);
 
@@ -136,6 +135,8 @@ public:
 	void set_requires_global_ack(bool requires_global_ack);
 	void set_is_ack(bool is_ack);
 	void set_is_global_ack(bool is_global_ack);
+
+	void copy_from_buffer(uint8_t* buffer, uint8_t buffer_length);
 };
 
 class ReliableComms
