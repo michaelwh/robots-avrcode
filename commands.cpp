@@ -68,9 +68,9 @@ ERRORS COMMAND::update_connected() {
  * */
 ERRORS COMMAND::request_id(uint8_t port) {
 	//Buffer to send the commands
-	_current_cmd = REQUEST_ID;
+	//_current_cmd = REQUEST_ID;
 	//_current_port = port;
-	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), _current_cmd};
+	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), REQUEST_ID};
 	Packet rx_packet(buffer,2);
 	if(_realiable_comms->send_packet(port,&rx_packet) != COMMS_SUCCESS) {
 		return FAIL_REQUEST;
@@ -81,7 +81,7 @@ ERRORS COMMAND::request_id(uint8_t port) {
  * Neighbour to Neighbour communication
  * */
 ERRORS COMMAND::return_id(uint8_t port) {
-	_current_cmd = RETURN_ID;
+	//_current_cmd = RETURN_ID;
 //	if(!_realiable_comms->is_port_connected(port))
 //	{
 //		update_connected();
