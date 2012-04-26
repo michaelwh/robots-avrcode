@@ -281,7 +281,7 @@ void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t d
 void MultiplexedComms::timer_ms_tick(void) {
 	if (_rx_state == RX_ACTIVE) {
 		_rx_timeout_timer++;
-		if (_rx_timeout_timer >= 2) {
+		if (_rx_timeout_timer >= 10) {
 			finish_rx();
 		}
 	}

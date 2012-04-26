@@ -55,6 +55,7 @@ volatile uint16_t timer_test_counter = 0;
 //volatile uint16_t test_num_ms_elapsed = 0;
 /* End temp testing variables */
 
+volatile uint16_t ms_counter = 0;
 
 void pinchange_interrupt(void) {
 
@@ -127,6 +128,7 @@ ISR(TIMER0_COMPA_vect) {
 //			dbgprintf("Returned: %d\n", cmd.request_id(1));
 //		}
 //	}
+	ms_counter++;
 }
 
 void setup_pinchange_interrupts(void) {
@@ -206,9 +208,9 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 //	for(int i = 0; i < rx_packet_length; i++)
 //		dbgprintf(" %d", rx_packet[i]);
 //	dbgprintf("\n");
-	SET_BIT(PORTC, 1);
-	CLR_BIT(PORTC, 1);
-	SET_BIT(PORTC, 1);
+//	SET_BIT(PORTC, 1);
+//	CLR_BIT(PORTC, 1);
+//	SET_BIT(PORTC, 1);
 
 	Packet packet((uint8_t*)rx_packet, rx_packet_length);
 	if(packet.is_ack()) {
@@ -314,19 +316,29 @@ int main(void) {
 //	dbgprintf("Second\n");
 //	print_packet(packetBuff.peek_first());
 
-	if(cmd._ID == 0) {
-		dbgprintf("Requesting ID\n");
-		dbgprintf("Returned: %d\n", cmd.request_id(1));
-	}
-	uint16_t value = PWM_MIN;
+//	if(cmd._ID == 0) {
+//		dbgprintf("Requesting ID\n");
+//		dbgprintf("Returned: %d\n", cmd.request_id(1));
+//	}
+	uint16_t value = PWM_MAX;
 	while(true) {
-		cmd.command_update();
-		PWM::BottomServoMove(value);
-		if(value == PWM_MAX)
-			value = PWM_MIN;
-		value++;
-		_delay_ms(1);
 
+		cmd.command_update();
+
+		if(ms_counter > 3000) {
+			// 3 seconds have passed
+			ms_counter = 0;
+
+			cmd.update_connected();
+
+
+			if(value != PWM_MAX)
+				value = PWM_MAX;
+			else
+				value = PWM_MIN;
+
+			PWM::BottomServoMove(value);
+		}
 
 
 #if 0

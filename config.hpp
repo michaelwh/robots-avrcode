@@ -9,7 +9,7 @@
 #define CONFIG_HPP_
 
 #define MAX_BLOCKS_CONNECTED 6
-#define MODULE_ID 0
+#define MODULE_ID 2
 #define DEFAULT_DATA 0xFF
 #define DEFAULT_FLAGS 0x00
 #define MESSAGE_ERROR 0xFF

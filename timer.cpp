@@ -15,21 +15,18 @@
 
 // http://members.shaw.ca/climber/avrinterrupts.html
 void millisecond_timer_enable(void) {
-	/* set the 8 bit timer count at 1MHz and clear when it reaches 999,
-	 * therefore interrupting every 1ms */
+	/* set the 8 bit timer to clear and interrupt every 1ms */
 
 	// set the top compare value
-	// write high then low - MUST be in this order
-	// since this is a special 16-bit write operation
-	OCR0A = 0x9B;
+	OCR0A = 0xF9;
 
 	// enable top match interrupt
 	TIMSK0 = (1<<OCIE0A);
 
 	// enable clear on top compare mode
-	// also enable timer and set clock prescaler to 8
+	// also enable timer and set clock prescaler to 64
 	TCCR0A = (1<<WGM01);
-	TCCR0B = (1<<CS00)|(1<<CS02);
+	TCCR0B = (1<<CS00)|(1<<CS01);
 }
 
 //uint32_t get_us_elapsed(uint16_t start_timer_val, uint16_t current_timer_val, uint16_t num_ms_ticks) {

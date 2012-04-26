@@ -53,8 +53,9 @@ ERRORS COMMAND::update_connected() {
 	uint8_t port = 0;
 	for(; port < MAX_BLOCKS_CONNECTED; port++) {
 		if(_realiable_comms->is_port_connected(port)) {
-			if(request_id(port) == FAIL_REQUEST) {
-				return FAIL;
+			if(request_id(port) == SUCCESS) {
+				// wait for reply
+				_delay_ms(1);
 			}
 		}
 		else
