@@ -22,23 +22,23 @@
 COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in) {
 	_realiable_comms = rel_comms;
 	//The current command issued
-	_current_cmd = DEFAULT_DATA;
+	//_current_cmd = DEFAULT_DATA;
 	//The current port used to communicate
-	_current_port = DEFAULT_DATA;
+	//_current_port = DEFAULT_DATA;
 	//The module of this ID;
 	_ID = MODULE_ID;
 	//This flags contains information about interruptions.
-	_flags = DEFAULT_FLAGS; //Everything set to Zero.
+	//_flags = DEFAULT_FLAGS; //Everything set to Zero.
 	//Buffer that is filled with the packet received
-	_buffer = NULL;
+	//_buffer = NULL;
 	//the length of the buffer
-	_buffer_length = 0;
+	//_buffer_length = 0;
 	//The last source ID from the last packet (Could do without it).
-	_last_source_ID_received = DEFAULT_FLAGS;
+	//_last_source_ID_received = DEFAULT_FLAGS;
 	//The last destination ID from the last packet (Could do without it).
-	_last_destination_ID_received = DEFAULT_FLAGS;
+	//_last_destination_ID_received = DEFAULT_FLAGS;
 	//Last packet ID that has been sent (Could do without it).
-	_last_packet_ID_sent = DEFAULT_FLAGS;
+	//_last_packet_ID_sent = DEFAULT_FLAGS;
 	//This array holds the last packets ID received from the blocks attached to the module
 	//_last_packet_ID_received = (volatile uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
 	//This array holds the IDS of the blocks attached to the module
@@ -69,7 +69,7 @@ ERRORS COMMAND::update_connected() {
 ERRORS COMMAND::request_id(uint8_t port) {
 	//Buffer to send the commands
 	_current_cmd = REQUEST_ID;
-	_current_port = port;
+	//_current_port = port;
 	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), _current_cmd};
 	Packet rx_packet(buffer,2);
 	if(_realiable_comms->send_packet(port,&rx_packet) != COMMS_SUCCESS) {
@@ -98,7 +98,7 @@ ERRORS COMMAND::return_id(uint8_t port) {
 
 void COMMAND::command_update() {
 	//dbgprintf("Command update, queue length: %d\n", packet_queue->length());
-	if(packet_queue->length() > 0) {
+	while(packet_queue->length() > 0) {
 //		dbgprintf("Command update, queue length: %d\n", packet_queue->length());
 		Packet* packet = packet_queue->peek_first();
 		uint8_t port = packet_queue->peek_first_port();
