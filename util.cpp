@@ -85,3 +85,9 @@ void PacketRingBuffer::clear(void) {
 	begin = 0;
 	numitems = 0;
 }
+
+// -------
+
+int randWithinRange(int min, int max) {
+	return (rand() * ((max - min)/RAND_MAX)) + min;
+}

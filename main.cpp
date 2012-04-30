@@ -268,6 +268,7 @@ int main(void) {
 		CLR_BIT(PORTC, 0);
 		SET_BIT(PORTC, 0);
 	}
+	srand(MODULE_ID);
 	PWM::init();
 	setup_pinchange_interrupts();
 	setup_mux();
@@ -322,6 +323,7 @@ int main(void) {
 //	}
 	uint16_t value = PWM_MAX;
 	while(true) {
+
 
 		cmd.command_update();
 

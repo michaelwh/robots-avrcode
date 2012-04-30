@@ -21,6 +21,9 @@
 #define USART_SEND_DELAY_MS	10
 #define MAX_PACKET_LEN	25
 
+#define PRESEND_RANDOM_DELAY_US_MIN 200
+#define PRESEND_RANDOM_DELAY_US_MAX 10000
+
 #define PWM_INIT_VALUE 500
 #define TOP_FREQUENCY 20000 //This should give the proper desired frequency
 #define PWM_MAX 2000
