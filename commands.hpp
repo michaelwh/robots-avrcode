@@ -30,7 +30,7 @@ class COMMAND {
 	//volatile uint8_t _last_destination_ID_received;
 	//volatile uint8_t _last_packet_ID_sent;
 	//volatile uint8_t _current_port;
-	volatile uint8_t _block_connected[MAX_BLOCKS_CONNECTED];
+	volatile int _block_connected[MAX_BLOCKS_CONNECTED];
 
 
 	PacketRingBuffer* packet_queue;
@@ -51,6 +51,7 @@ class COMMAND {
 	uint8_t return_routing(uint8_t packet_id, uint8_t destination);
 	uint8_t analize_packet();
 	uint8_t retransmit_packet(uint8_t port);
+	int get_block_connected(uint8_t port);
 
 	void command_update();
 };
