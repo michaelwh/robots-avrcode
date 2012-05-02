@@ -35,14 +35,16 @@ MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoo
 
 ReliableComms reliable_comms(&multiplexedComms);
 
-
-
-
 Packet packet_queue_buffer[5];
 uint8_t port_queue_buffer[5];
-PacketRingBuffer queue(5, packet_queue_buffer, port_queue_buffer);
+PacketRingBuffer queue(MAX_PACKET_STORED, packet_queue_buffer, port_queue_buffer);
 
-COMMAND cmd(&reliable_comms, &queue);
+/*Byte queues for the received packets*/
+ByteRingBuffer packets_id_received(MAX_NETWORK_PACKET_STORED);
+ByteRingBuffer packets_source_received(MAX_NETWORK_PACKET_STORED);
+ByteRingBuffer packets_destination_received(MAX_NETWORK_PACKET_STORED);
+
+COMMAND cmd(&reliable_comms, &queue , &packets_id_received, &packets_source_received, &packets_destination_received);
 
 
 /* Temp testing variables */
@@ -51,8 +53,6 @@ volatile uint8_t* test_bytes;
 volatile uint8_t test_bytes_len = 0;
 volatile uint8_t test_bytes_port = 0;
 volatile uint16_t timer_test_counter = 0;
-//uint16_t test_start_timer_val = 0;
-//volatile uint16_t test_num_ms_elapsed = 0;
 /* End temp testing variables */
 
 volatile uint16_t millisecond_counter;
@@ -83,17 +83,6 @@ void pinchange_interrupt(void) {
 		}
 	}
 
-	/*for (uint8_t port_i = 0; port_i < num_ports; port_i++) {
-		if (CHECK_BIT(*port_snoop_orientation_pins[port_i], port_snoop_orientation_pinsnos[port_i])) {
-			prev_pinchange_orientation_values[port_i] = true;
-		} else {
-			if(prev_pinchange_orientation_values[port_i] == true) {
-				port = port_i;
-			}
-			prev_pinchange_orientation_values[port_i] = false;
-		}
-	}*/
-
 	if (port != -1) {
 		//SET_BIT(PORTC, 0);
 		//CLR_BIT(PORTC, 0);
@@ -115,13 +104,13 @@ ISR(USART0_RX_vect) {
 	multiplexedComms.rx_byte(rx_byte);
 }
 
-//uint16_t timer_test = 0;
 
 ISR(TIMER0_COMPA_vect) {
 
 	//CLR_BIT(PORTC, 1);
 	//_delay_us(200);
 	multiplexedComms.timer_ms_tick();
+
 	//SET_BIT(PORTC, 1);
 	//test_num_ms_elapsed++;
 	//SET_BIT(PORTC, 1);
@@ -137,6 +126,9 @@ ISR(TIMER0_COMPA_vect) {
 	//three_second_ms_counter++;
 	//one_second_ms_counter++;
 	millisecond_counter++;
+
+	//ms_counter++;
+
 }
 
 void setup_pinchange_interrupts(void) {
@@ -147,10 +139,6 @@ void setup_pinchange_interrupts(void) {
 	CLR_BIT(DDRB, 3);
 	CLR_BIT(DDRB, 4);
 	CLR_BIT(DDRD, 6);
-
-	// activate internal pull-ups
-	//SET_BIT(DDRB, 0);
-	//SET_BIT(DDRB, 1);
 
 	// interrupt mask on these pins
 	PCMSK1 |= 0x1F;
@@ -235,26 +223,8 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 
 			Packet packet(data_to_send, 2);
 			reliable_comms.send_packet(rx_port, &packet);
-
-			/*send_test_bytes = true;
-			test_bytes_port = rx_port;
-			test_bytes_len = rx_packet_length;
-			test_bytes = (uint8_t*)malloc(test_bytes_len * sizeof(uint8_t));
-			for (int i = 2; i < test_bytes_len; i++)
-				test_bytes[i] = rx_packet[i];*/
 		}
 
-
-
-//		if(rx_packet_length >= 2 && rx_packet[1] == REQUEST_ID) {
-//			send_test_bytes = true;
-//			test_bytes_port = rx_port;
-//			//cmd.return_id(rx_port);
-//		}
-//		else if(rx_packet_length >= 3 && rx_packet[1] == RETURN_ID) {
-//			cmd._block_connected[rx_port] = rx_packet[2];
-//			dbgprintf("ID returned %u\n", rx_packet[2]);
-//		}
 	}
 
 
@@ -331,6 +301,10 @@ int main(void) {
 //		dbgprintf("Requesting ID\n");
 //		dbgprintf("Returned: %d\n", cmd.request_id(1));
 //	}
+
+
+
+
 	uint16_t value = PWM_MAX;
 
 
@@ -381,7 +355,6 @@ int main(void) {
 			}
 
 		}
-
 
 #if 0
 		dbgprintf("Making packet\n");

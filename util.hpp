@@ -9,16 +9,19 @@
 
 class ByteRingBuffer {
 public:
-	ByteRingBuffer(uint16_t length);
-	void append(uint8_t item);
+	ByteRingBuffer(uint8_t length);
+	bool append(uint8_t item);
 	uint8_t peek(uint8_t index);
-	uint16_t length(void);
+	bool isEmpty(void);
+	bool isFull(void);
 	void clear(void);
+	bool dequeue(void);
+	uint8_t get_length(void);
 private:
 	uint8_t* buffer;
-	uint16_t bufferlen;
-	uint16_t end;
-	uint16_t numitems;
+	uint8_t bufferlen;
+	uint8_t end;
+	uint8_t front;
 };
 
 class PacketRingBuffer {
