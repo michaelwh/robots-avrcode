@@ -34,7 +34,7 @@ class COMMAND {
 	//volatile uint8_t _last_destination_ID_received;
 	//volatile uint8_t _last_packet_ID_sent;
 	//volatile uint8_t _current_port;
-	volatile uint8_t _block_connected[MAX_BLOCKS_CONNECTED];
+	volatile int _block_connected[MAX_BLOCKS_CONNECTED];
 	volatile bool _waiting_for_global_ack;
 	volatile bool _got_ack_global_flag;
 	volatile uint8_t _packet_number;
@@ -62,6 +62,7 @@ class COMMAND {
 	uint8_t analize_packet();
 	uint8_t retransmit_packet(uint8_t port);
 	bool check_repeated(uint8_t packet_id, uint8_t source, uint8_t destination);
+	int get_block_connected(uint8_t port);
 
 	void command_update();
 };

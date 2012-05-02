@@ -222,6 +222,7 @@ int main(void) {
 		CLR_BIT(PORTC, 0);
 		SET_BIT(PORTC, 0);
 	}
+	srand(MODULE_ID);
 	PWM::init();
 	setup_pinchange_interrupts();
 	setup_mux();
@@ -281,12 +282,28 @@ int main(void) {
 	uint16_t value = PWM_MAX;
 	while(true) {
 
+
 		cmd.command_update();
 
 		if(ms_counter > 3000) {
 			// 3 seconds have passed
 			ms_counter = 0;
 
+			dbgprintf("Current connected ports:");
+			for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++) {
+				dbgprintf(" [Port %u: ", port);
+				int conn = cmd.get_block_connected(port);
+				if (conn == BLOCK_NOT_CONNECTED)
+					dbgprintf("Not connected");
+				else if(conn == BLOCK_CONNECTED_NO_RESPONSE)
+					dbgprintf("No response");
+				else
+					dbgprintf("%d", conn);
+				dbgprintf("]");
+			}
+			dbgprintf("\n");
+
+			dbgprintf("Updating connected...\n");
 			cmd.update_connected();
 
 

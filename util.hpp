@@ -42,4 +42,5 @@ private:
 	uint8_t* port_buffer;
 };
 
+int randWithinRange(int min, int max);
 #endif /* UTIL_HPP_ */

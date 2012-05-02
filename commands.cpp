@@ -41,18 +41,30 @@ COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingB
 ERRORS COMMAND::update_connected() {
 	//Buffer where the request id command stores its data.
 	//uint8_t *data = (uint8_t*)malloc(sizeof(*data));
+	//dbgprintf("Connected:");
 	uint8_t port = 0;
 	for(; port < MAX_BLOCKS_CONNECTED; port++) {
+		//dbgprintf(" [%d]: %d,", port, _realiable_comms->is_port_connected(port));
 		if(_realiable_comms->is_port_connected(port)) {
+			//dbgprintf("Querying port %d\n", port);
 			if(request_id(port) == SUCCESS) {
-				// wait for reply
+				//dbgprintf("Query of port %d successful\n", port);
+				// stay connected long enough for reply to arrive
 				_delay_ms(1);
+			} else {
+				_block_connected[port] = BLOCK_CONNECTED_NO_RESPONSE;
 			}
 		}
-		else
+		else {
 			_block_connected[port] = BLOCK_NOT_CONNECTED;//There is nothing connected there
+		}
 	}
+	//dbgprintf("\n");
 	return SUCCESS;
+}
+
+int COMMAND::get_block_connected(uint8_t port) {
+	return _block_connected[port];
 }
 
 /*
