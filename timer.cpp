@@ -29,6 +29,32 @@ void millisecond_timer_enable(void) {
 	TCCR0B = (1<<CS00)|(1<<CS01);
 }
 
+CounterTimer::CounterTimer(volatile uint16_t* counter_p_in) {
+	_start_counter_value = 0;
+	_counter_p = counter_p_in;
+}
+
+bool CounterTimer::has_elapsed(uint16_t time) {
+	uint16_t elapsed = 0;
+	if(*_counter_p < _start_counter_value) {
+		// overflow has occurred
+		elapsed = (65535 - _start_counter_value) + *_counter_p;
+	} else {
+		elapsed = *_counter_p - _start_counter_value;
+	}
+
+	if(elapsed >= time) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+void CounterTimer::reset(void) {
+	_start_counter_value = *_counter_p;
+}
+
 //uint32_t get_us_elapsed(uint16_t start_timer_val, uint16_t current_timer_val, uint16_t num_ms_ticks) {
 //	/* Give this function the value of the timer when you started timing (found by get_current_ms_timer_value) and
 //	 * the number of millisecond ticks elapsed since then (you should increment this every time the timer ISR is called)

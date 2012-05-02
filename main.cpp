@@ -55,7 +55,13 @@ volatile uint16_t timer_test_counter = 0;
 //volatile uint16_t test_num_ms_elapsed = 0;
 /* End temp testing variables */
 
-volatile uint16_t ms_counter = 0;
+volatile uint16_t millisecond_counter;
+
+CounterTimer three_second_counter_timer(&millisecond_counter);
+CounterTimer one_second_counter_timer(&millisecond_counter);
+
+//volatile uint16_t three_second_ms_counter = 0;
+//volatile uint16_t one_second_ms_counter = 0;
 
 void pinchange_interrupt(void) {
 
@@ -128,7 +134,9 @@ ISR(TIMER0_COMPA_vect) {
 //			dbgprintf("Returned: %d\n", cmd.request_id(1));
 //		}
 //	}
-	ms_counter++;
+	//three_second_ms_counter++;
+	//one_second_ms_counter++;
+	millisecond_counter++;
 }
 
 void setup_pinchange_interrupts(void) {
@@ -276,6 +284,8 @@ int main(void) {
 	init_debug();
 	multiplexedComms.init(rx_packet_callback_func, pinchange_interrupts_enable, pinchange_interrupts_disable, set_mux_port);
 	millisecond_timer_enable();
+	one_second_counter_timer.reset();
+	three_second_counter_timer.reset();
 	sei();
 
 
@@ -322,14 +332,17 @@ int main(void) {
 //		dbgprintf("Returned: %d\n", cmd.request_id(1));
 //	}
 	uint16_t value = PWM_MAX;
+
+
 	while(true) {
 
 
 		cmd.command_update();
 
-		if(ms_counter > 3000) {
+		if(three_second_counter_timer.has_elapsed(3000)) {//three_second_ms_counter > 3000) {
 			// 3 seconds have passed
-			ms_counter = 0;
+			//three_second_ms_counter = 0;
+			three_second_counter_timer.reset();
 
 			dbgprintf("Current connected ports:");
 			for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++) {
@@ -349,12 +362,24 @@ int main(void) {
 			cmd.update_connected();
 
 
-			if(value != PWM_MAX)
+
+			/*if(value != PWM_MAX)
 				value = PWM_MAX;
 			else
 				value = PWM_MIN;
 
-			PWM::BottomServoMove(value);
+			PWM::BottomServoMove(value);*/
+		}
+
+		if(one_second_counter_timer.has_elapsed(1000)) {//one_second_ms_counter > 1000) {
+			//one_second_ms_counter = 0;
+			one_second_counter_timer.reset();
+			if(MODULE_ID == 0) {
+				dbgprintf("Sending out pulse\n");
+				for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++)
+					cmd.send_pulse(port, 255);
+			}
+
 		}
 
 

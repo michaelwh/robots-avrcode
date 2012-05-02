@@ -94,17 +94,20 @@ ERRORS COMMAND::request_id(uint8_t port) {
  * Neighbour to Neighbour communication
  * */
 ERRORS COMMAND::return_id(uint8_t port) {
-	//_current_cmd = RETURN_ID;
-//	if(!_realiable_comms->is_port_connected(port))
-//	{
-//		update_connected();
-//		return FAIL;
-//	}
 	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), RETURN_ID, _ID};
 	Packet rx_packet(buffer,3);
 	if(_realiable_comms->send_packet(port, &rx_packet) != COMMS_SUCCESS) {
 		return FAIL;
 	}
+	else
+		return SUCCESS;
+}
+
+ERRORS COMMAND::send_pulse(uint8_t port, uint16_t pulse_value) {
+	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), COMMAND_PULSE, (uint8_t) pulse_value >> 8, (uint8_t) pulse_value};
+	Packet rx_packet(buffer, 4);
+	if(_realiable_comms->send_packet(port, &rx_packet) != COMMS_SUCCESS)
+		return FAIL;
 	else
 		return SUCCESS;
 }
@@ -124,6 +127,12 @@ void COMMAND::command_update() {
 					if(packet->data_length >= 3) {
 						_block_connected[port] = packet->data[2];
 						dbgprintf("ID returned %u\n", packet->data[2]);
+					}
+					break;
+				case COMMAND_PULSE:
+					if(packet->data_length >= 4) {
+						uint16_t pulse_value = packet->data[2] << 8 | packet->data[3];
+						dbgprintf("Got pulse of value %d\n", pulse_value);
 					}
 					break;
 				default:

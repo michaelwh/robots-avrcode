@@ -52,6 +52,7 @@ class COMMAND {
 	uint8_t analize_packet();
 	uint8_t retransmit_packet(uint8_t port);
 	int get_block_connected(uint8_t port);
+	ERRORS send_pulse(uint8_t port, uint16_t pulse_value);
 
 	void command_update();
 };

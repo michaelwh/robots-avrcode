@@ -9,7 +9,7 @@
 #define CONFIG_HPP_
 
 #define MAX_BLOCKS_CONNECTED 6
-#define MODULE_ID 15
+#define MODULE_ID 0
 #define DEFAULT_DATA 0xFF
 #define DEFAULT_FLAGS 0x00
 #define MESSAGE_ERROR 0xFF
@@ -39,6 +39,8 @@
 #define RETURN_ROUTING		0x04
 #define NETWORK_ACKNOWLEDGE 0x05
 #define COMMAND_ACK 		0x06
+
+#define COMMAND_PULSE		0xF0
 
 
 #endif /* CONFIG_HPP_ */
