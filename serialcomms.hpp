@@ -121,6 +121,9 @@ public:
 	Packet(uint8_t* data_in, uint8_t data_length_in);
 
 	uint8_t get_command(void);
+	uint8_t get_destination(void);
+	uint8_t get_source(void);
+	uint8_t get_packet_id(void);
 
 	static uint8_t make_packet_flags(bool is_network, bool requires_ack, bool requires_global_ack, bool is_ack, bool is_global_ack);
 
@@ -160,6 +163,7 @@ public:
 
 	 volatile bool waiting_for_ack;
 	 volatile bool got_ack_flag;
+
 private:
 
 

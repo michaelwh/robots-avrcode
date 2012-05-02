@@ -15,11 +15,12 @@
 #include "commands.hpp"
 #include "config.hpp"
 #include "debug.hpp"
+#include "pwm.hpp"
 
 
 
 /*COMMAND member function*/
-COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in) {
+COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received) {
 	_realiable_comms = rel_comms;
 	//The current command issued
 	//_current_cmd = DEFAULT_DATA;
@@ -27,24 +28,14 @@ COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in) {
 	//_current_port = DEFAULT_DATA;
 	//The module of this ID;
 	_ID = MODULE_ID;
-	//This flags contains information about interruptions.
-	//_flags = DEFAULT_FLAGS; //Everything set to Zero.
-	//Buffer that is filled with the packet received
-	//_buffer = NULL;
-	//the length of the buffer
-	//_buffer_length = 0;
-	//The last source ID from the last packet (Could do without it).
-	//_last_source_ID_received = DEFAULT_FLAGS;
-	//The last destination ID from the last packet (Could do without it).
-	//_last_destination_ID_received = DEFAULT_FLAGS;
-	//Last packet ID that has been sent (Could do without it).
-	//_last_packet_ID_sent = DEFAULT_FLAGS;
-	//This array holds the last packets ID received from the blocks attached to the module
-	//_last_packet_ID_received = (volatile uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
-	//This array holds the IDS of the blocks attached to the module
-	//_block_connected = (volatile uint8_t*)malloc(MAX_BLOCKS_CONNECTED * sizeof(uint8_t));
-	//update_connected();
+	 _packets_destination_received = packets_id_received;
+	_packets_source_received = packets_source_received;
+	_packets_destination_received = packets_destination_received;
+	//The que that has the commands to do
 	packet_queue = queue_in;
+	_waiting_for_global_ack = false;
+	_got_ack_global_flag = false;
+	_packet_number = 0;
 }
 
 ERRORS COMMAND::update_connected() {
@@ -69,11 +60,9 @@ ERRORS COMMAND::update_connected() {
  * */
 ERRORS COMMAND::request_id(uint8_t port) {
 	//Buffer to send the commands
-	//_current_cmd = REQUEST_ID;
-	//_current_port = port;
 	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), REQUEST_ID};
 	Packet rx_packet(buffer,2);
-	if(_realiable_comms->send_packet(port,&rx_packet) != COMMS_SUCCESS) {
+	if(_realiable_comms->send_packet(port,&rx_packet, MAX_NEIGHBOR_RETRY) != COMMS_SUCCESS) {
 		return FAIL_REQUEST;
 	}
 		return SUCCESS;
@@ -82,19 +71,68 @@ ERRORS COMMAND::request_id(uint8_t port) {
  * Neighbour to Neighbour communication
  * */
 ERRORS COMMAND::return_id(uint8_t port) {
-	//_current_cmd = RETURN_ID;
-//	if(!_realiable_comms->is_port_connected(port))
-//	{
-//		update_connected();
-//		return FAIL;
-//	}
 	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), RETURN_ID, _ID};
 	Packet rx_packet(buffer,3);
-	if(_realiable_comms->send_packet(port, &rx_packet) != COMMS_SUCCESS) {
+	if(_realiable_comms->send_packet(port, &rx_packet, MAX_NEIGHBOR_RETRY) != COMMS_SUCCESS) {
 		return FAIL;
 	}
 	else
 		return SUCCESS;
+}
+
+ERRORS COMMAND::move_top_servo_neighbour(uint8_t port, uint16_t value) {
+	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), MOVE_TOP_SERVO, (uint8_t) value >> 8, (uint8_t) value};
+	Packet rx_packet(buffer,4);
+	if(_realiable_comms->send_packet(port, &rx_packet, MAX_NEIGHBOR_RETRY) != COMMS_SUCCESS)
+		return FAIL;
+	else
+		return SUCCESS;
+}
+
+ERRORS COMMAND::move_bottom_servo_neighbour(uint8_t port, uint16_t value) {
+	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), MOVE_BOTTOM_SERVO, (uint8_t) value >> 8, (uint8_t) value};
+	Packet rx_packet(buffer,4);
+	if(_realiable_comms->send_packet(port, &rx_packet, MAX_NEIGHBOR_RETRY) != COMMS_SUCCESS)
+		return FAIL;
+	else
+		return SUCCESS;
+}
+
+ERRORS COMMAND::move_bottom_servo_network(uint8_t destination, uint16_t value) {
+	//Increase the packet number
+	_packet_number++;
+	//Build the packet
+	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_BOTTOM_SERVO, (uint8_t) value >> 8, (uint8_t) value};
+	Packer rx_packet(buffer,6);
+	if (send_packet_network(&rx_packet,MAX_NETWORK_RETRY)!= NETWORK_COMM_SUCCESS)
+		return FAIL;
+	else
+		return SUCCESS;
+}
+
+ERRORS COMMAND::move_top_servo_network(uint8_t destination, uint16_t value) {
+	//Increase the packet number
+	_packet_number++;
+	//Build the packet
+	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_TOP_SERVO, (uint8_t) value >> 8, (uint8_t) value};
+	Packer rx_packet(buffer,6);
+	if (send_packet_network(&rx_packet,MAX_NETWORK_RETRY)!= NETWORK_COMM_SUCCESS)
+		return FAIL;
+	else
+		return SUCCESS;
+}
+
+ERRORS COMMAND::FLOOD(Packet *packet, uint8_t skip_port) {
+	//So it floods but does not require a global ack!
+	//packet->set_requires_global_ack(false);
+	for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++) {
+		if(_realiable_comms->is_port_connected(port) && port != skip_port) {
+			if(_realiable_comms->send_packet(port, packet, MIN_NETWORK_RETRY) != COMMS_SUCCESS) {
+				return FAIL;
+			}
+		}
+	}
+	return SUCCESS;
 }
 
 void COMMAND::command_update() {
@@ -114,97 +152,133 @@ void COMMAND::command_update() {
 						dbgprintf("ID returned %u\n", packet->data[2]);
 					}
 					break;
+				case MOVE_TOP_SERVO:
+					if(packet->data_length >= 4) {
+						uint16_t value = ((packet->data[2] << 8) | packet->data[3]);
+						PWM::TopServoMove(value);
+					}
+					break;
+				case MOVE_BOTTOM_SERVO:
+					if(packet->data_length >= 4) {
+						uint16_t value = ((packet->data[2] << 8) | packet->data[3]);
+						PWM::BottomServoMove(value);
+					}
+					break;
 				default:
 					break;
 			}
-		}
 
+		}else if(packet->is_network() && packet->data_length >= 2) {
+			if(!check_repeated(packet->get_packet_id(), packet->get_source(), packet->get_destination())) {
+				/*If this packet has not been received so far*/
+				if(packet->get_destination() == _ID) {
+					/*and it is destined to this id*/
+					_packet_number++;
+					//It is the moment to send the Ack Back
+					if(packet->get_command() != NETWORK_ACKNOWLEDGE && packet->requires_global_ack()) {
+						//SEND AN ACKNOWLEDGEMENT BACK, BUT DO NOT ACKNOLEDGE TEH ACKNOWLEDGMENT!!!
+						uint8_t ack_global_back[] = {Packet::make_packet_flags(true,true,false,false,true), _packet_number, _ID, packet->get_source(), NETWORK_ACKNOWLEDGE};
+						Packet packet_back(ack_global_back, 5);
+						//Send it, it will only try it once
+						send_packet_network(&packet_back, MIN_NETWORK_RETRY);
+					}
+					//ALL THE NETWORK PACKA
+					switch(packet->get_command()) {
+					case NETWORK_ACKNOWLEDGE:
+						if(_waiting_for_global_ack)
+							_got_ack_global_flag = true;
+						break;
+					case MOVE_TOP_SERVO:
+						//Usual
+						if(packet->data_length >= 6) {
+							uint16_t value = ((packet->data[4] << 8) | packet->data[5]);
+							PWM::TopServoMove(value);
+						}
+						break;
+					case MOVE_BOTTOM_SERVO:
+						if(packet->data_length >= 6) {
+							uint16_t value = ((packet->data[4] << 8) | packet->data[5]);
+							PWM::BottomServoMove(value);
+						}
+
+						default:
+						break;
+					}
+				}
+				else {
+					/*THIS PACKET IS NOT FOR ME, BUT I HAVEN'T SEEN IT SO FAR, LET'S FLOOD THE NETWORK with the packet*/
+					FLOOD(packet, port);
+				}
+
+			if(_packets_destination_received->isFull() || _packets_source_received->isFull() || _packets_id_received->isFull()) {
+				_packets_destination_received->dequeue();
+				_packets_source_received->dequeue();
+				_packets_id_received->dequeue();
+			}
+			_packets_destination_received->append(packet->get_destination());
+			_packets_source_received->append(packet->get_source());
+			_packets_id_received->append(packet->get_packet_id());
+		}
+		}
 		packet_queue->dequeue();
 	}
 }
-/*
- * Network communication, it floods the network until it finds the proper module, it requires a global acknowledge.
 
-uint8_t COMMAND::return_routing(uint8_t packet_id, uint8_t destination) {
-	uint8_t buffer[13];
-	bool pass = true;
-	_current_cmd = RETURN_ROUTING;
-
-	buffer[0] = 0x00; //Begin 00
-	buffer[1] = 0x08; //Length of the packet NOT INCLUDING 0x00 and len
-	buffer[2] = 0x05; //web packet routing with acknowledge
-	buffer[3] = packet_id;
-	buffer[4] = _ID;
-	buffer[5] = destination;
-	buffer[6] = _current_cmd;	//RETURN_ROUTING
-	int i = 0;
-	for(; i < MAX_BLOCKS_CONNECTED; i++)
-		buffer[i + 7] = _block_connected[i];
-	for(i = 0; i < MAX_BLOCKS_CONNECTED; i++) {
-		if((_block_connected[i] != BLOCK_NOT_CONNECTED)) {
-			if(send_packet(i,buffer,13) == MESSAGE_ERROR)
-				return MESSAGE_ERROR;
-		}
-	}
-//HERE WE MUST ADD A TIMER IF IT DOES NOT RECEIVE THE RETURN PACKET.
-	do {
-		pass = true;
-		while(((_flags >> SERIAL_0) & SERIAL_MASK) == 0);
-		_flags &= 0xFD; //Clean the flag because we have consumed the interruption.
-		if(((_buffer[0] & SERIAL_MASK)) && (_buffer[4]== NETWORK_ACKNOWLEDGE) && (_buffer_length >= 4)) {
-				//If it's a networking packet and it is an ACKNOWLEDGE packet and the length of the packet is the proper one
-				return MESSAGE_OK;
-			}
-			else if (analize_packet() == MESSAGE_ERROR)
-				//Analize the packet
-				return MESSAGE_ERROR;
-			else
-				pass = false;
-	}while(~pass);
-	return MESSAGE_OK;
-
-}
-uint8_t COMMAND::analize_packet() {
-	_flags &= 0xFD; //Clean the flag because we have consumed the interruption.
-	if(~(_buffer[0] & SERIAL_MASK)) {
-		//It is a neighbour to neighbour packet
-		switch(_buffer[1]) {
-		case REQUEST_ID:
-			if(return_id()== MESSAGE_ERROR)
-				return MESSAGE_ERROR;
-			break;
-		}
-	}else {
-		//It is a networking packet
-		if(_buffer[4] == _ID) {
-			switch(_buffer[5]) {
-			case RETURN_ROUTING:
-				//The packet is for this module. Sector the IDS available per module
-				if(_buffer[1] == 0xFE)
-					_last_packet_ID_sent = 0x01;
-				else
-					_last_packet_ID_sent++;
-				if(return_routing(_last_packet_ID_sent,_last_destination_ID_received) == MESSAGE_ERROR)
-					return MESSAGE_ERROR;
-			break;
-			}
-		}
-		else {
-			//The packet is not for this ID RETRANSMIT IT
-			for(int i=0; i < MAX_BLOCKS_CONNECTED; i++) {
-				if(_block_connected[i] != BLOCK_NOT_CONNECTED
-							&& _last_packet_ID_received[i] != _buffer[1]) {
-						_current_port = i;
-						//Retransmit packet because it is not for the id of this module.
-						if(send_packet(i,_buffer,_buffer_length) == MESSAGE_ERROR)
-							return MESSAGE_ERROR;
-					}
+ERRORS COMMAND::send_packet_network(Packet *packet, uint8_t max_network_retry) {
+	if (packet->requires_global_ack()) {
+		_waiting_for_global_ack = true;
+	for (uint8_t retry = 0; retry < max_network_retry; retry++) {
+		//Send the packet to all the connected ports
+		for(uint8_t port_to_send = 0; port_to_send < MAX_BLOCKS_CONNECTED; port_to_send++) {
+			if(_realiable_comms->is_port_connected(port_to_send)) {
+				if(_realiable_comms->send_packet(port_to_send, packet) != COMMS_SUCCESS) {
+					return NETWORK_COMM_FAIL;
 				}
 			}
 		}
-	return MESSAGE_OK;
+		// keep checking timer values and wait until we get an ACK or timeout
+		for (uint8_t delay_i = 0; delay_i < DELAY_NETWORK_TIMEOUT_MS; delay_i++) {
+			if(_got_ack_global_flag) {
+				break;
+			}
+			_delay_us(DELAY_NETWORK_TIMEOUT_US);
+		}
+		if(_got_ack_global_flag)
+			break;
+	}
+	_waiting_for_global_ack = false;
+	//_mux_comms->unlock_from_port();
+
+
+	if(_got_ack_global_flag) {
+		_got_ack_global_flag = false;
+		return NETWORK_COMM_SUCCESS;
+	}
+	else
+		//dbgprintf(">Timeout!");
+		return NETWORK_COMM_TIMEOUT;
+	}
+	else {
+		for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++) {
+			if(_realiable_comms->is_port_connected(port)) {
+				if(_realiable_comms->send_packet(port, packet) != COMMS_SUCCESS) {
+					return NETWORK_COMM_FAIL;
+				}
+			}
+		}
+		return NETWORK_COMM_SUCCESS;
+	}
 }
-*/
+/*
+ * It returns true if the command has been received already
+ * */
+bool COMMAND::check_repeated(uint8_t packet_id, uint8_t source, uint8_t destination) {
+	for(int i = 0 ; i < _packets_destination_received->get_length(); i++)
+		if(_packets_id_received->peek(i) == packet_id && _packets_source_received->peek(i) == source && _packets_destination_received->peek(i) == destination)
+			return true;
+	return false;
+}
+
 
 
 

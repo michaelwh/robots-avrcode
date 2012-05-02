@@ -4,33 +4,49 @@
 #include "util.hpp"
 #include "config.hpp"
 
-ByteRingBuffer::ByteRingBuffer(uint16_t length) {
+ByteRingBuffer::ByteRingBuffer(uint8_t length) {
 	buffer = (uint8_t*)malloc(length * sizeof(uint8_t));
 	bufferlen = length;
 	end = 0;
+	front = 0;
 }
 
-void ByteRingBuffer::append(uint8_t item) {
-	if(numitems < bufferlen)
-		numitems++;
-	buffer[end] = item;
+bool ByteRingBuffer::append(uint8_t item) {
+	uint8_t temp = end;
 	end = (end + 1) % bufferlen;
+	if(front == end){
+		end = temp;
+		return false;
+	}
+	else
+	buffer[end] = item;
+	return true;
 }
 
+bool ByteRingBuffer::isEmpty(void){
+	return front == end;
+}
+bool ByteRingBuffer::isFull(void) {
+	return ((end+1)%bufferlen == front);
+}
 uint8_t ByteRingBuffer::peek(uint8_t index) {
 	return buffer[(end + index) % bufferlen];
 }
 
-uint16_t ByteRingBuffer::length(void) {
-	return numitems;
-}
-
 void ByteRingBuffer::clear(void) {
 	end = 0;
-	numitems = 0;
+	front = 0;
 }
 
-
+bool ByteRingBuffer::dequeue() {
+	if(front == end)
+		return false;
+	front = (front + 1) % bufferlen;
+	return true;
+}
+ uint8_t ByteRingBuffer::get_length() {
+	 return bufferlen;
+ }
 // -------
 
 PacketRingBuffer::PacketRingBuffer(uint8_t length, Packet* packet_buffer, uint8_t* port_buffer_in) {

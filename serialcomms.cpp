@@ -336,11 +336,36 @@ Packet::Packet() {
 uint8_t Packet::get_command(void) {
 	if(is_ack())
 		return data[1]; // TODO: Change this to appropriate data
+	else if(!is_network()) /*Romel, Changed to return the proper command when neighbor to neighbor*/
+		return data[1];
+	else				//Is network command
+		return data[4];
+}
+
+/*Added by romel*/
+uint8_t Packet::get_destination(void) {
+	if(!is_network())
+		//Destination 0x00 it means no network packet
+		return 0x00;
+	else
+		return data[3];
+}
+
+uint8_t Packet::get_source(void) {
+	if(!is_network())
+		//Destination 0x00 it means no network packet
+		return 0x00;
+	else
+		return data[2];
+}
+
+uint8_t Packet::get_packet_id(void) {
+	if(!is_network())
+		//Destination 0x00 it means no network packet
+		return 0x00;
 	else
 		return data[1];
 }
-
-
 // ------------ END PACKET METHODS
 
 // ------------ FLAGS METHODS
