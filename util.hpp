@@ -17,6 +17,7 @@ public:
 	void clear(void);
 	bool dequeue(void);
 	uint8_t get_length(void);
+	bool checkRepeated(uint8_t item);
 private:
 	uint8_t* buffer;
 	uint8_t bufferlen;

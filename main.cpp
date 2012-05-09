@@ -324,15 +324,10 @@ int main(void) {
 
 
 	while(true) {
-
-
-		cmd.command_update();
-
-		if(three_second_counter_timer.has_elapsed(3000)) {//three_second_ms_counter > 3000) {
+		if(three_second_counter_timer.has_elapsed(10000)) {//three_second_ms_counter > 3000) {
 			// 3 seconds have passed
 			//three_second_ms_counter = 0;
 			three_second_counter_timer.reset();
-
 			dbgprintf("Current connected ports:");
 			for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++) {
 				dbgprintf(" [Port %u: ", port);
@@ -349,18 +344,23 @@ int main(void) {
 
 			dbgprintf("Updating connected...\n");
 			cmd.update_connected();
-
-
-
-			/*if(value != PWM_MAX)
+			cmd.command_update();
+			if(value != PWM_MAX)
 				value = PWM_MAX;
 			else
 				value = PWM_MIN;
 
-			PWM::BottomServoMove(value);*/
+			if (cmd._ID == 0) {
+				dbgprintf("Sending Bottom instruction:%u \n", value);
+				cmd.move_bottom_servo_network(1,value);
+				dbgprintf("Sending Top instruction:%u \n", value);
+				cmd.move_top_servo_network(1,value);
+
+			}
+			/*PWM::BottomServoMove(value);*/
 		}
 
-		if(one_second_counter_timer.has_elapsed(1000)) {//one_second_ms_counter > 1000) {
+/*		if(one_second_counter_timer.has_elapsed(1000)) {//one_second_ms_counter > 1000) {
 			//one_second_ms_counter = 0;
 			one_second_counter_timer.reset();
 			if(MODULE_ID == 0) {
@@ -369,7 +369,7 @@ int main(void) {
 					cmd.send_pulse(port, 255);
 			}
 
-		}
+		}*/
 
 #if 0
 		dbgprintf("Making packet\n");
