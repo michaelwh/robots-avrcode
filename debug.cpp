@@ -36,7 +36,7 @@ static int uart_putchar(char c, FILE *stream)
 
 
 void init_debug(void) {
-	USART1.init_9600();
+	USART1.init_76800();
 
 	uart_str = fdevopen(uart_putchar, NULL);
 	stdout = uart_str; //Required for printf init

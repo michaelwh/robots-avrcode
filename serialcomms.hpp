@@ -97,8 +97,6 @@ private:
 	volatile uint8_t * const* _port_snoop_orientation_pins;
 	const uint8_t * _port_snoop_orientation_pinnos;
 
-
-
 	void (*_rx_packet_callback)(uint8_t, volatile uint8_t*, uint8_t);
 	void (*_enable_incoming_data_interrupts_func)(void);
 	void (*_disable_incoming_data_interrupts_func)(void);
@@ -168,6 +166,24 @@ private:
 
 
 	MultiplexedComms* _mux_comms;
+};
+
+typedef enum rx1_status_t { RX1_IDLE, RX1_ACTIVE } rx1_status;
+class Controller
+{	/**/
+	public:
+	USART* _usart;
+	rx1_status _rx1_status;
+	volatile uint8_t _rx1_timeout_timer;
+	volatile bool _rx1_interrupted;
+	volatile bool _rx1_done;
+
+	void (*_rx_packet_callback)(uint8_t, volatile uint8_t*, uint8_t);
+	volatile rx_packet_t _current_rx1_packet;
+	void finish_rx(void);
+
+	Controller();
+	void rx_byte(uint8_t byte_in);
 };
 
 #endif /* COMMSLOW_HPP_ */

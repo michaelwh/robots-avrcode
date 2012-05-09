@@ -17,8 +17,6 @@
 #include "debug.hpp"
 #include "pwm.hpp"
 
-
-
 /*COMMAND member function*/
 COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received) {
 	_realiable_comms = rel_comms;
@@ -104,7 +102,7 @@ ERRORS COMMAND::send_pulse(uint8_t port, uint16_t pulse_value) {
 
 
 ERRORS COMMAND::move_top_servo_neighbour(uint8_t port, uint16_t value) {
-	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), MOVE_TOP_SERVO, (uint8_t) value >> 8, (uint8_t) value};
+	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), MOVE_TOP_SERVO, uint8_t (value >> 8), (uint8_t) value};
 	Packet rx_packet(buffer,4);
 	if(_realiable_comms->send_packet(port, &rx_packet, MAX_NEIGHBOR_RETRY) != COMMS_SUCCESS)
 		return FAIL;
@@ -114,7 +112,7 @@ ERRORS COMMAND::move_top_servo_neighbour(uint8_t port, uint16_t value) {
 
 
 ERRORS COMMAND::move_bottom_servo_neighbour(uint8_t port, uint16_t value) {
-	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), MOVE_BOTTOM_SERVO, (uint8_t) value >> 8, (uint8_t) value};
+	uint8_t buffer[] = {Packet::make_packet_flags(false,true,false,false,false), MOVE_BOTTOM_SERVO, uint8_t (value >> 8), (uint8_t) value};
 	Packet rx_packet(buffer,4);
 	if(_realiable_comms->send_packet(port, &rx_packet, MAX_NEIGHBOR_RETRY) != COMMS_SUCCESS)
 		return FAIL;
@@ -123,13 +121,12 @@ ERRORS COMMAND::move_bottom_servo_neighbour(uint8_t port, uint16_t value) {
 }
 
 ERRORS COMMAND::move_bottom_servo_network(uint8_t destination, uint16_t value) {
-	uint8_t aux1 = (uint8_t) value >> 8;
-	uint8_t aux2 = (uint8_t) value;
+
 	//Increase the packet number
 	_packet_number++;
 	//Build the packet
-	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_BOTTOM_SERVO, aux1, aux2};
-	Packet rx_packet(buffer,6);
+	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_BOTTOM_SERVO, uint8_t (value >> 8), (uint8_t) value};
+	Packet rx_packet(buffer,7);
 	dbgprintf("Printing bottom servo network\n");
 		dbgprintf("Packet length: %d, data:", (&rx_packet)->data_length);
 		for(int i = 0; i < (&rx_packet)->data_length; i++)
@@ -142,16 +139,9 @@ ERRORS COMMAND::move_bottom_servo_network(uint8_t destination, uint16_t value) {
 }
 
 ERRORS COMMAND::move_top_servo_network(uint8_t destination, uint16_t value) {
-	//Increase the packet number
-	uint8_t aux1 = (uint8_t) value >> 8;
-	uint8_t aux2 = (uint8_t) value;
 	_packet_number++;
-	//Build the packet
-	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_TOP_SERVO, aux1, aux2};
-	Packet rx_packet(buffer,6);
-	/*Romel*/
-	dbgprintf("Printing top servo network\n");
-	dbgprintf("Packet length: %d, data:", (&rx_packet)->data_length);
+	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_TOP_SERVO, uint8_t (value >> 8), (uint8_t) value};
+	Packet rx_packet(buffer,7);
 	for(int i = 0; i < (&rx_packet)->data_length; i++)
 		dbgprintf(" %d", (&rx_packet)->data[i]);
 	dbgprintf("\n");
@@ -217,10 +207,6 @@ void COMMAND::command_update() {
 			}
 
 		}else if(packet->is_network() && packet->data_length >= 2) {
-			dbgprintf("NETWORK PACKET ID %u\n",packet->get_packet_id());
-			dbgprintf("NETWORK PACKET SOURCE %u\n", packet->get_source());
-			dbgprintf("NETWORK PACKET SOURCE %u\n", packet->get_destination());
-			dbgprintf("NETWORK PACKET COMMAND %X\n",packet->get_command());
 			if(!check_repeated(packet->get_packet_id(), packet->get_source(), packet->get_destination())) {
 				/*If this packet has not been received so far*/
 				if(packet->get_destination() == _ID) {
@@ -245,22 +231,14 @@ void COMMAND::command_update() {
 						break;
 					case MOVE_TOP_SERVO:
 						//Usual
-						if(packet->data_length >= 6) {
-							dbgprintf("TOP");
-							dbgprintf("DATA[4] %u\n",packet->data[4]);
-							dbgprintf("DATA[5] %u\n",packet->data[5]);
-							uint16_t value = ((packet->data[4] << 8) | packet->data[5]);
-							dbgprintf("TOP SERVO packet value %u\n",value);
+						if(packet->data_length >= 7) {
+							uint16_t value = ((packet->data[5] << 8) | packet->data[6]);
 							PWM::TopServoMove(value);
 						}
 						break;
 					case MOVE_BOTTOM_SERVO:
-						if(packet->data_length >= 6) {
-							dbgprintf("TOP");
-							dbgprintf("DATA[4] %u\n",packet->data[4]);
-							dbgprintf("DATA[5] %u\n",packet->data[5]);
-							uint16_t value = ((packet->data[4] << 8) | packet->data[5]);
-							dbgprintf("BOTTOM SERVO packet value %u\n",value);
+						if(packet->data_length >= 7) {
+							uint16_t value = ((packet->data[5] << 8) | packet->data[6]);
 							PWM::BottomServoMove(value);
 						}
 					break;
@@ -310,6 +288,7 @@ ERRORS COMMAND::send_packet_network(Packet *packet, uint8_t max_network_retry) {
 		}
 		if(_got_ack_global_flag)
 			break;
+		packet->data[1]++;
 	}
 	_waiting_for_global_ack = false;
 	//_mux_comms->unlock_from_port();
