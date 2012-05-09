@@ -28,7 +28,7 @@ COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingB
 	//_current_port = DEFAULT_DATA;
 	//The module of this ID;
 	_ID = MODULE_ID;
-	 _packets_destination_received = packets_id_received;
+	 _packets_id_received = packets_id_received;
 	_packets_source_received = packets_source_received;
 	_packets_destination_received = packets_destination_received;
 	//The que that has the commands to do
@@ -123,11 +123,18 @@ ERRORS COMMAND::move_bottom_servo_neighbour(uint8_t port, uint16_t value) {
 }
 
 ERRORS COMMAND::move_bottom_servo_network(uint8_t destination, uint16_t value) {
+	uint8_t aux1 = (uint8_t) value >> 8;
+	uint8_t aux2 = (uint8_t) value;
 	//Increase the packet number
 	_packet_number++;
 	//Build the packet
-	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_BOTTOM_SERVO, (uint8_t) value >> 8, (uint8_t) value};
+	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_BOTTOM_SERVO, aux1, aux2};
 	Packet rx_packet(buffer,6);
+	dbgprintf("Printing bottom servo network\n");
+		dbgprintf("Packet length: %d, data:", (&rx_packet)->data_length);
+		for(int i = 0; i < (&rx_packet)->data_length; i++)
+			dbgprintf(" %d", (&rx_packet)->data[i]);
+		dbgprintf("\n");
 	if (send_packet_network(&rx_packet,MAX_NETWORK_RETRY)!= NETWORK_COMM_SUCCESS)
 		return FAIL;
 	else
@@ -136,10 +143,19 @@ ERRORS COMMAND::move_bottom_servo_network(uint8_t destination, uint16_t value) {
 
 ERRORS COMMAND::move_top_servo_network(uint8_t destination, uint16_t value) {
 	//Increase the packet number
+	uint8_t aux1 = (uint8_t) value >> 8;
+	uint8_t aux2 = (uint8_t) value;
 	_packet_number++;
 	//Build the packet
-	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_TOP_SERVO, (uint8_t) value >> 8, (uint8_t) value};
+	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_TOP_SERVO, aux1, aux2};
 	Packet rx_packet(buffer,6);
+	/*Romel*/
+	dbgprintf("Printing top servo network\n");
+	dbgprintf("Packet length: %d, data:", (&rx_packet)->data_length);
+	for(int i = 0; i < (&rx_packet)->data_length; i++)
+		dbgprintf(" %d", (&rx_packet)->data[i]);
+	dbgprintf("\n");
+	/*Romel*/
 	if (send_packet_network(&rx_packet,MAX_NETWORK_RETRY)!= NETWORK_COMM_SUCCESS)
 		return FAIL;
 	else
@@ -201,15 +217,21 @@ void COMMAND::command_update() {
 			}
 
 		}else if(packet->is_network() && packet->data_length >= 2) {
+			dbgprintf("NETWORK PACKET ID %u\n",packet->get_packet_id());
+			dbgprintf("NETWORK PACKET SOURCE %u\n", packet->get_source());
+			dbgprintf("NETWORK PACKET SOURCE %u\n", packet->get_destination());
+			dbgprintf("NETWORK PACKET COMMAND %X\n",packet->get_command());
 			if(!check_repeated(packet->get_packet_id(), packet->get_source(), packet->get_destination())) {
 				/*If this packet has not been received so far*/
 				if(packet->get_destination() == _ID) {
+					dbgprintf("Destination %u\n",packet->get_destination());
 					/*and it is destined to this id*/
 					_packet_number++;
 					//It is the moment to send the Ack Back
 					if(packet->get_command() != NETWORK_ACKNOWLEDGE && packet->requires_global_ack()) {
+						dbgprintf("Sending global ack\n");
 						//SEND AN ACKNOWLEDGEMENT BACK, BUT DO NOT ACKNOLEDGE TEH ACKNOWLEDGMENT!!!
-						uint8_t ack_global_back[] = {Packet::make_packet_flags(true,true,false,false,true), _packet_number, _ID, packet->get_source(), NETWORK_ACKNOWLEDGE};
+						uint8_t ack_global_back[] = {Packet::make_packet_flags(true,false,false,false,true), _packet_number, _ID, packet->get_source(), NETWORK_ACKNOWLEDGE};
 						Packet packet_back(ack_global_back, 5);
 						//Send it, it will only try it once
 						send_packet_network(&packet_back, MIN_NETWORK_RETRY);
@@ -217,23 +239,33 @@ void COMMAND::command_update() {
 					//ALL THE NETWORK PACKA
 					switch(packet->get_command()) {
 					case NETWORK_ACKNOWLEDGE:
+						dbgprintf("Network ACK RECEIVED\n");
 						if(_waiting_for_global_ack)
 							_got_ack_global_flag = true;
 						break;
 					case MOVE_TOP_SERVO:
 						//Usual
 						if(packet->data_length >= 6) {
+							dbgprintf("TOP");
+							dbgprintf("DATA[4] %u\n",packet->data[4]);
+							dbgprintf("DATA[5] %u\n",packet->data[5]);
 							uint16_t value = ((packet->data[4] << 8) | packet->data[5]);
+							dbgprintf("TOP SERVO packet value %u\n",value);
 							PWM::TopServoMove(value);
 						}
 						break;
 					case MOVE_BOTTOM_SERVO:
 						if(packet->data_length >= 6) {
+							dbgprintf("TOP");
+							dbgprintf("DATA[4] %u\n",packet->data[4]);
+							dbgprintf("DATA[5] %u\n",packet->data[5]);
 							uint16_t value = ((packet->data[4] << 8) | packet->data[5]);
+							dbgprintf("BOTTOM SERVO packet value %u\n",value);
 							PWM::BottomServoMove(value);
 						}
-
+					break;
 						default:
+							dbgprintf("WEIRD AND WRONG PACKET");
 						break;
 					}
 				}
@@ -263,6 +295,7 @@ ERRORS COMMAND::send_packet_network(Packet *packet, uint8_t max_network_retry) {
 		//Send the packet to all the connected ports
 		for(uint8_t port_to_send = 0; port_to_send < MAX_BLOCKS_CONNECTED; port_to_send++) {
 			if(_realiable_comms->is_port_connected(port_to_send)) {
+				dbgprintf("SENDING TO PORT %u",port_to_send);
 				if(_realiable_comms->send_packet(port_to_send, packet) != COMMS_SUCCESS) {
 					return NETWORK_COMM_FAIL;
 				}
@@ -305,10 +338,7 @@ ERRORS COMMAND::send_packet_network(Packet *packet, uint8_t max_network_retry) {
  * It returns true if the command has been received already
  * */
 bool COMMAND::check_repeated(uint8_t packet_id, uint8_t source, uint8_t destination) {
-	for(int i = 0 ; i < _packets_destination_received->get_length(); i++)
-		if(_packets_id_received->peek(i) == packet_id && _packets_source_received->peek(i) == source && _packets_destination_received->peek(i) == destination)
-			return true;
-	return false;
+	return _packets_id_received->checkRepeated(packet_id) & _packets_source_received->checkRepeated(source) & _packets_source_received->checkRepeated(destination);
 }
 
 

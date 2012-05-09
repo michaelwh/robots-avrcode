@@ -1,5 +1,6 @@
 #include <inttypes.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "util.hpp"
 #include "config.hpp"
@@ -45,7 +46,23 @@ bool ByteRingBuffer::dequeue() {
 	return true;
 }
  uint8_t ByteRingBuffer::get_length() {
-	 return bufferlen;
+	 if(isFull())
+		 return bufferlen;
+	 if(front > end)
+		 return bufferlen - front + end;
+	 else
+		 return end - front;
+ }
+
+ bool ByteRingBuffer::checkRepeated(uint8_t item) {
+	 uint8_t aux = end;
+	 do {
+		 if(buffer[aux] == item)
+			 return true;
+		 else
+			 aux = (aux + 1) % bufferlen;
+	 }while (aux != front);
+	 return false;
  }
 // -------
 
