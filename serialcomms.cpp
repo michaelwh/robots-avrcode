@@ -542,3 +542,45 @@ void ReliableComms::rx_ack(uint8_t port, Packet* packet) {
 	}
 }
 
+Controller::Controller() {
+	_rx1_status = RX1_IDLE;
+	_rx1_timeout_timer = 0;
+}
+
+void Controller::finish_rx(void) {
+	_rx1_status = RX1_IDLE;
+	_rx1_timeout_timer = 0;
+
+	if(_current_rx1_packet.have_packet_length && _current_rx1_packet.current_rx_byte_index >= _current_rx1_packet.packet_length) {
+		_rx1_done = true;
+		if (_rx_packet_callback != NULL)
+			_rx_packet_callback(255, _current_rx1_packet.received_packet, _current_rx1_packet.packet_length);
+	}
+
+
+	//_enable_incoming_data_interrupts_func();
+}
+void Controller::rx_byte(uint8_t byte_in) {
+	/* Called when a byte is received over the serial line */
+
+	if(_rx1_status == RX1_ACTIVE) {
+		_rx1_timeout_timer = 0;
+		if(!_current_rx1_packet.have_packet_length) {
+			_current_rx1_packet.packet_length = byte_in;
+			_current_rx1_packet.have_packet_length = true;
+			_current_rx1_packet.current_rx_byte_index = 0;
+			if (byte_in == 0)
+				finish_rx();
+		} else {
+			_current_rx1_packet.received_packet[_current_rx1_packet.current_rx_byte_index] = byte_in;
+			_current_rx1_packet.current_rx_byte_index++;
+
+			if(_current_rx1_packet.current_rx_byte_index >= _current_rx1_packet.packet_length) {
+
+				finish_rx();
+
+			}
+
+		}
+	}
+}

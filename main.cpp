@@ -22,7 +22,6 @@ USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
 
 const uint8_t num_ports = 6;
-#if MODULE_ID == 0
 // PCB module which uses different pins for snoop and orientation
 // so we assume it has ID 0 and assign it different pins
 volatile uint8_t * const port_snoop_pins[] = { &PINB, &PIND, &PINB, &PINB, &PINB, &PINB };
@@ -31,15 +30,7 @@ const uint8_t port_snoop_pinsnos[] = { 2, 6, 3, 4, 0, 1 };
 volatile uint8_t * const port_snoop_orientation_pins[] = { &PINC, &PINC, &PINC, &PINC, &PINC, &PINC };
 const uint8_t port_snoop_orientation_pinsnos[] = { 5, 4, 2, 3, 7, 6 };
 
-#else
 
-volatile uint8_t * const port_snoop_pins[] = { &PINB, &PINB, &PINB, &PINB, &PINB, &PIND };
-const uint8_t port_snoop_pinsnos[] = { 0, 1, 2, 3, 4, 6 };
-
-volatile uint8_t * const port_snoop_orientation_pins[] = { &PINC, &PINC, &PINC, &PINC, &PINC, &PINC };
-const uint8_t port_snoop_orientation_pinsnos[] = { 2, 3, 4, 5, 6, 7 };
-
-#endif
 
 
 
@@ -119,6 +110,11 @@ ISR(USART0_RX_vect) {
 	multiplexedComms.rx_byte(rx_byte);
 }
 
+ISR(USART1_RX_vect) {
+	/* interrupt that fires whenever a data byte is received over serial 1 */
+	uint8_t rx_byte = UDR1;
+	multiplexedComms.rx_byte(rx_byte);
+}
 
 ISR(TIMER0_COMPA_vect) {
 
@@ -228,6 +224,11 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 		//dbgprintf("Packet is ack\n");
 		reliable_comms.rx_ack(rx_port, &packet);
 	} else {
+		//If the port is the computer then assume that the packets have been sent by this module
+		if(rx_port == 255) {
+			//Change ID of teh packet to this one
+			rx_packet[2] = cmd._ID;
+		}
 		bool appendret = cmd.packet_queue->append((uint8_t*)rx_packet, rx_packet_length, rx_port);
 
 		if(appendret && packet.requires_ack()){
@@ -350,7 +351,7 @@ int main(void) {
 			else
 				value = PWM_MIN;
 
-			if (cmd._ID == 0) {
+			if (cmd._ID == 3) {
 				dbgprintf("Sending Bottom instruction:%u \n", value);
 				cmd.move_bottom_servo_network(1,value);
 				dbgprintf("Sending Top instruction:%u \n", value);
