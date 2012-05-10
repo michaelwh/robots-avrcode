@@ -39,6 +39,8 @@ volatile bool prev_pinchange_values[num_ports];
 
 MultiplexedComms multiplexedComms(&USART0, num_ports, port_snoop_pins, port_snoop_pinsnos, port_snoop_orientation_pins, port_snoop_orientation_pinsnos);
 
+Controller controller_pc;
+
 ReliableComms reliable_comms(&multiplexedComms);
 
 Packet packet_queue_buffer[5];
@@ -113,7 +115,8 @@ ISR(USART0_RX_vect) {
 ISR(USART1_RX_vect) {
 	/* interrupt that fires whenever a data byte is received over serial 1 */
 	uint8_t rx_byte = UDR1;
-	multiplexedComms.rx_byte(rx_byte);
+	controller_pc.rx1_byte(rx_byte);
+
 }
 
 ISR(TIMER0_COMPA_vect) {
@@ -121,6 +124,7 @@ ISR(TIMER0_COMPA_vect) {
 	//CLR_BIT(PORTC, 1);
 	//_delay_us(200);
 	multiplexedComms.timer_ms_tick();
+	controller_pc.timer_ms_tick();
 
 	//SET_BIT(PORTC, 1);
 	//test_num_ms_elapsed++;
@@ -220,6 +224,8 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 //	SET_BIT(PORTC, 1);
 
 	Packet packet((uint8_t*)rx_packet, rx_packet_length);
+	print_packet(&packet);
+	//print_packet(&packet);
 	if(packet.is_ack()) {
 		//dbgprintf("Packet is ack\n");
 		reliable_comms.rx_ack(rx_port, &packet);
@@ -268,109 +274,25 @@ int main(void) {
 	setup_mux();
 	USART0.init_76800();
 	init_debug();
+	controller_pc.init(rx_packet_callback_func);
 	multiplexedComms.init(rx_packet_callback_func, pinchange_interrupts_enable, pinchange_interrupts_disable, set_mux_port);
 	millisecond_timer_enable();
 	one_second_counter_timer.reset();
 	three_second_counter_timer.reset();
 	sei();
-
-
-//	while(false) {
-//		uint16_t current_timer_val;
-//		uint16_t current_ticks;
-//		ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-//			current_timer_val = get_current_ms_timer_value();
-//			current_ticks = test_num_ms_elapsed;
-//		}
-//
-//		if(get_us_elapsed(test_start_timer_val, current_timer_val, test_num_ms_elapsed) >= 900) {
-//			test_num_ms_elapsed = 0;
-//			test_start_timer_val = current_timer_val;
-//			SET_BIT(PORTC, 3);
-//			CLR_BIT(PORTC, 3);
-//			SET_BIT(PORTC, 3);
-//		}
-//	}
-
-
-//	Packet queue[5];
-//	PacketRingBuffer packetBuff(5, queue);
-//
-//	uint8_t t_bytes[] = { Packet::make_packet_flags(false, true, false, false, false), 4, 12, 13, 14, 15 };
-//	uint8_t t_bytes_2[] = { Packet::make_packet_flags(false, true, false, false, false), 9, 18 };
-//
-//	packetBuff.append(t_bytes, 6);
-//	packetBuff.append(t_bytes_2, 3);
-//	packetBuff.append(t_bytes_2, 3);
-//	packetBuff.append(t_bytes_2, 3);
-//	dbgprintf("Should return true %d", packetBuff.append(t_bytes_2, 3));
-//	dbgprintf("Should return false %d", packetBuff.append(t_bytes_2, 3));
-//
-//	dbgprintf("First\n");
-//	print_packet(packetBuff.peek_first());
-//	packetBuff.dequeue();
-//	dbgprintf("Should return true %d", packetBuff.append(t_bytes, 6));
-//	dbgprintf("Second\n");
-//	print_packet(packetBuff.peek_first());
-
-//	if(cmd._ID == 0) {
-//		dbgprintf("Requesting ID\n");
-//		dbgprintf("Returned: %d\n", cmd.request_id(1));
-//	}
-
-
-
-
-	uint16_t value = PWM_MAX;
-
+	cmd.update_connected();
 
 	while(true) {
-		if(three_second_counter_timer.has_elapsed(10000)) {//three_second_ms_counter > 3000) {
-			// 3 seconds have passed
-			//three_second_ms_counter = 0;
-			three_second_counter_timer.reset();
-			dbgprintf("Current connected ports:");
-			for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++) {
-				dbgprintf(" [Port %u: ", port);
-				int conn = cmd.get_block_connected(port);
-				if (conn == BLOCK_NOT_CONNECTED)
-					dbgprintf("Not connected");
-				else if(conn == BLOCK_CONNECTED_NO_RESPONSE)
-					dbgprintf("No response");
-				else
-					dbgprintf("%d", conn);
-				dbgprintf("]");
+
+		cmd.command_update();			/*PWM::BottomServoMove(value);*/
+		if(one_second_counter_timer.has_elapsed(500)) {//one_second_ms_counter > 1000) {
+				//one_second_ms_counter = 0;
+				one_second_counter_timer.reset();
+				dbgprintf("Updating\n");
 			}
-			dbgprintf("\n");
-
-			dbgprintf("Updating connected...\n");
-			cmd.update_connected();
-			cmd.command_update();
-			if(value != PWM_MAX)
-				value = PWM_MAX;
-			else
-				value = PWM_MIN;
-
-			if (cmd._ID == 3) {
-				dbgprintf("Sending Bottom instruction:%u \n", value);
-				cmd.move_bottom_servo_network(1,value);
-				dbgprintf("Sending Top instruction:%u \n", value);
-				cmd.move_top_servo_network(1,value);
-
-			}
-			/*PWM::BottomServoMove(value);*/
 		}
 
-/*		if(one_second_counter_timer.has_elapsed(1000)) {//one_second_ms_counter > 1000) {
-			//one_second_ms_counter = 0;
-			one_second_counter_timer.reset();
-			if(MODULE_ID == 0) {
-				dbgprintf("Sending out pulse\n");
-				for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++)
-					cmd.send_pulse(port, 255);
-			}
 
-		}*/
 
 #if 0
 		dbgprintf("Making packet\n");
@@ -407,4 +329,3 @@ int main(void) {
 	}
 
 
-}
