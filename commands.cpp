@@ -209,6 +209,7 @@ void COMMAND::command_update() {
 		}else if(packet->is_network() && packet->data_length >= 2) {
 			if(!check_repeated(packet->get_packet_id(), packet->get_source(), packet->get_destination())) {
 				/*If this packet has not been received so far*/
+				dbgprintf("COMMAND %u\n",packet->get_command());
 				if(packet->get_destination() == _ID) {
 					dbgprintf("Destination %u\n",packet->get_destination());
 					/*and it is destined to this id*/

@@ -545,9 +545,13 @@ void ReliableComms::rx_ack(uint8_t port, Packet* packet) {
 Controller::Controller() {
 	_rx1_status = RX1_IDLE;
 	_rx1_timeout_timer = 0;
+
 }
 
-void Controller::finish_rx(void) {
+void Controller::init(void (*rx_packet_callback)(uint8_t rx_port, volatile uint8_t* rx_packet, uint8_t rx_packet_length)) {
+	_rx_packet_callback = rx_packet_callback;
+}
+void Controller::finish_rx1(void) {
 	_rx1_status = RX1_IDLE;
 	_rx1_timeout_timer = 0;
 
@@ -560,27 +564,50 @@ void Controller::finish_rx(void) {
 
 	//_enable_incoming_data_interrupts_func();
 }
-void Controller::rx_byte(uint8_t byte_in) {
-	/* Called when a byte is received over the serial line */
 
-	if(_rx1_status == RX1_ACTIVE) {
+void Controller::timer_ms_tick(void) {
+	if (_rx1_status == RX1_ACTIVE) {
+		_rx1_timeout_timer++;
+		if (_rx1_timeout_timer >= 10) {
+			finish_rx1();
+		}
+	}
+}
+
+void Controller::start_rx(void) {
+	_current_rx1_packet.have_packet_length = false;
+	_current_rx1_packet.packet_length = 0;
+	_current_rx1_packet.current_rx_byte_index = 0;
+	_rx1_done = false;
+	_rx1_status = RX1_ACTIVE;
+	_rx1_timeout_timer = 0;
+}
+
+void Controller::rx1_byte(uint8_t byte_in) {
+	/* Called when a byte is received over the serial line */
+	if(_rx1_status == RX1_IDLE) {
+		dbgprintf("GOT A PACKET LENGTH OF\n");
+		start_rx();
+		_current_rx1_packet.packet_length = byte_in;
+		_current_rx1_packet.have_packet_length = true;
+		_rx1_status = RX1_ACTIVE;
+		_current_rx1_packet.current_rx_byte_index = 0;
+		if (byte_in == 0)
+			finish_rx1();
+
+	}
+	else if(_rx1_status == RX1_ACTIVE) {
 		_rx1_timeout_timer = 0;
-		if(!_current_rx1_packet.have_packet_length) {
-			_current_rx1_packet.packet_length = byte_in;
-			_current_rx1_packet.have_packet_length = true;
-			_current_rx1_packet.current_rx_byte_index = 0;
-			if (byte_in == 0)
-				finish_rx();
-		} else {
+
 			_current_rx1_packet.received_packet[_current_rx1_packet.current_rx_byte_index] = byte_in;
+			//dbgprintf("RX_BYTE: %u NO: %u of %d\n", byte_in, _current_rx1_packet.current_rx_byte_index, _current_rx1_packet.packet_length);
 			_current_rx1_packet.current_rx_byte_index++;
 
 			if(_current_rx1_packet.current_rx_byte_index >= _current_rx1_packet.packet_length) {
 
-				finish_rx();
+				dbgprintf("FINISHED RX\n");
+				finish_rx1();
 
 			}
-
-		}
 	}
 }

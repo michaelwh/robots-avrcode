@@ -172,6 +172,8 @@ typedef enum rx1_status_t { RX1_IDLE, RX1_ACTIVE } rx1_status;
 class Controller
 {	/**/
 	public:
+	Controller();
+	void init(void (*rx_packet_callback)(uint8_t, volatile uint8_t*, uint8_t));
 	USART* _usart;
 	rx1_status _rx1_status;
 	volatile uint8_t _rx1_timeout_timer;
@@ -180,10 +182,11 @@ class Controller
 
 	void (*_rx_packet_callback)(uint8_t, volatile uint8_t*, uint8_t);
 	volatile rx_packet_t _current_rx1_packet;
-	void finish_rx(void);
 
-	Controller();
-	void rx_byte(uint8_t byte_in);
+	void finish_rx1(void);
+	void rx1_byte(uint8_t byte_in);
+	void timer_ms_tick();
+	void start_rx(void);
 };
 
 #endif /* COMMSLOW_HPP_ */
