@@ -586,7 +586,6 @@ void Controller::start_rx(void) {
 void Controller::rx1_byte(uint8_t byte_in) {
 	/* Called when a byte is received over the serial line */
 	if(_rx1_status == RX1_IDLE) {
-		dbgprintf("GOT A PACKET LENGTH OF\n");
 		start_rx();
 		_current_rx1_packet.packet_length = byte_in;
 		_current_rx1_packet.have_packet_length = true;
@@ -604,8 +603,6 @@ void Controller::rx1_byte(uint8_t byte_in) {
 			_current_rx1_packet.current_rx_byte_index++;
 
 			if(_current_rx1_packet.current_rx_byte_index >= _current_rx1_packet.packet_length) {
-
-				dbgprintf("FINISHED RX\n");
 				finish_rx1();
 
 			}

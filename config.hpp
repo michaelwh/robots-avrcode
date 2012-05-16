@@ -9,7 +9,7 @@
 #define CONFIG_HPP_
 
 #define MAX_BLOCKS_CONNECTED 6
-#define MODULE_ID 0
+#define MODULE_ID 1
 #define DEFAULT_DATA 0xFF
 #define DEFAULT_FLAGS 0x00
 #define MESSAGE_ERROR 0xFF
@@ -31,10 +31,11 @@
 
 #define PRESEND_RANDOM_DELAY_US_MIN 200
 #define PRESEND_RANDOM_DELAY_US_MAX 10000
+#define PWM_STEP 20
 
-#define PWM_INIT_VALUE 500
+#define PWM_INIT_VALUE 1500
 #define TOP_FREQUENCY 20000 //This should give the proper desired frequency
-#define PWM_MAX 2000
+#define PWM_MAX 2500
 #define PWM_MIN 500
 #define MESSAGE_ERROR 0xFF
 #define MESSAGE_OK 0x00

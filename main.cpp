@@ -43,6 +43,8 @@ Controller controller_pc;
 
 ReliableComms reliable_comms(&multiplexedComms);
 
+PWM pwm_move;
+
 Packet packet_queue_buffer[5];
 uint8_t port_queue_buffer[5];
 PacketRingBuffer queue(MAX_PACKET_STORED, packet_queue_buffer, port_queue_buffer);
@@ -52,7 +54,7 @@ ByteRingBuffer packets_id_received(MAX_NETWORK_PACKET_STORED);
 ByteRingBuffer packets_source_received(MAX_NETWORK_PACKET_STORED);
 ByteRingBuffer packets_destination_received(MAX_NETWORK_PACKET_STORED);
 
-COMMAND cmd(&reliable_comms, &queue , &packets_id_received, &packets_source_received, &packets_destination_received);
+COMMAND cmd(&reliable_comms, &queue , &packets_id_received, &packets_source_received, &packets_destination_received, &pwm_move);
 
 
 /* Temp testing variables */
@@ -224,7 +226,6 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 //	SET_BIT(PORTC, 1);
 
 	Packet packet((uint8_t*)rx_packet, rx_packet_length);
-	print_packet(&packet);
 	//print_packet(&packet);
 	if(packet.is_ack()) {
 		//dbgprintf("Packet is ack\n");
@@ -269,7 +270,7 @@ int main(void) {
 		SET_BIT(PORTC, 0);
 	}
 	srand(MODULE_ID);
-	PWM::init();
+	//PWM::init();
 	setup_pinchange_interrupts();
 	setup_mux();
 	USART0.init_76800();
@@ -281,18 +282,33 @@ int main(void) {
 	three_second_counter_timer.reset();
 	sei();
 	cmd.update_connected();
-
-	while(true) {
-
-		cmd.command_update();			/*PWM::BottomServoMove(value);*/
-		if(one_second_counter_timer.has_elapsed(500)) {//one_second_ms_counter > 1000) {
+	uint16_t value = (PWM_MAX + PWM_MIN)/2;
+	cmd.command_update();
+	for (uint8_t i = 0; i < 20; i++) {
+				/*PWM::BottomServoMove(value);*/
 				//one_second_ms_counter = 0;
-				one_second_counter_timer.reset();
-				dbgprintf("Updating\n");
-			}
+			//cmd.move_forward();
+		pwm_move.TopServoMove(value);
+		_delay_ms(200);
+		pwm_move.BottomServoMove(value);
+		_delay_ms(200);
+		pwm_move.TopServoMove(1000);
+		}
+#if 0
+	for (uint8_t i = 0; i < 20; i++) {
+				/*PWM::BottomServoMove(value);*/
+				//one_second_ms_counter = 0;
+				pwm_move.TopServoMove(value);
+				_delay_ms(200);
+				pwm_move.BottomServoMove(value);
+				_delay_ms(200);
+				pwm_move.TopServoMove(PWM_MAX);
+				_delay_ms(200);
+				pwm_move.BottomServoMove(PWM_MIN);
+				_delay_ms(200);
 		}
 
-
+#endif
 
 #if 0
 		dbgprintf("Making packet\n");

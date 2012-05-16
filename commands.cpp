@@ -18,7 +18,7 @@
 #include "pwm.hpp"
 
 /*COMMAND member function*/
-COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received) {
+COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received, PWM *pwm_move) {
 	_realiable_comms = rel_comms;
 	//The current command issued
 	//_current_cmd = DEFAULT_DATA;
@@ -34,6 +34,7 @@ COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingB
 	_waiting_for_global_ack = false;
 	_got_ack_global_flag = false;
 	_packet_number = 0;
+	_pwm = pwm_move;
 }
 
 ERRORS COMMAND::update_connected() {
@@ -127,11 +128,6 @@ ERRORS COMMAND::move_bottom_servo_network(uint8_t destination, uint16_t value) {
 	//Build the packet
 	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_BOTTOM_SERVO, uint8_t (value >> 8), (uint8_t) value};
 	Packet rx_packet(buffer,7);
-	dbgprintf("Printing bottom servo network\n");
-		dbgprintf("Packet length: %d, data:", (&rx_packet)->data_length);
-		for(int i = 0; i < (&rx_packet)->data_length; i++)
-			dbgprintf(" %d", (&rx_packet)->data[i]);
-		dbgprintf("\n");
 	if (send_packet_network(&rx_packet,MAX_NETWORK_RETRY)!= NETWORK_COMM_SUCCESS)
 		return FAIL;
 	else
@@ -142,9 +138,6 @@ ERRORS COMMAND::move_top_servo_network(uint8_t destination, uint16_t value) {
 	_packet_number++;
 	uint8_t buffer[] = {Packet::make_packet_flags(true,true,true,false,false),_packet_number,_ID, destination, MOVE_TOP_SERVO, uint8_t (value >> 8), (uint8_t) value};
 	Packet rx_packet(buffer,7);
-	for(int i = 0; i < (&rx_packet)->data_length; i++)
-		dbgprintf(" %d", (&rx_packet)->data[i]);
-	dbgprintf("\n");
 	/*Romel*/
 	if (send_packet_network(&rx_packet,MAX_NETWORK_RETRY)!= NETWORK_COMM_SUCCESS)
 		return FAIL;
@@ -193,13 +186,13 @@ void COMMAND::command_update() {
 				case MOVE_TOP_SERVO:
 					if(packet->data_length >= 4) {
 						uint16_t value = ((packet->data[2] << 8) | packet->data[3]);
-						PWM::TopServoMove(value);
+						_pwm->TopServoMove(value);
 					}
 					break;
 				case MOVE_BOTTOM_SERVO:
 					if(packet->data_length >= 4) {
 						uint16_t value = ((packet->data[2] << 8) | packet->data[3]);
-						PWM::BottomServoMove(value);
+						_pwm->BottomServoMove(value);
 					}
 					break;
 				default:
@@ -216,7 +209,6 @@ void COMMAND::command_update() {
 					_packet_number++;
 					//It is the moment to send the Ack Back
 					if(packet->get_command() != NETWORK_ACKNOWLEDGE && packet->requires_global_ack()) {
-						dbgprintf("Sending global ack\n");
 						//SEND AN ACKNOWLEDGEMENT BACK, BUT DO NOT ACKNOLEDGE TEH ACKNOWLEDGMENT!!!
 						uint8_t ack_global_back[] = {Packet::make_packet_flags(true,false,false,false,true), _packet_number, _ID, packet->get_source(), NETWORK_ACKNOWLEDGE};
 						Packet packet_back(ack_global_back, 5);
@@ -233,14 +225,16 @@ void COMMAND::command_update() {
 					case MOVE_TOP_SERVO:
 						//Usual
 						if(packet->data_length >= 7) {
+							dbgprintf("Top Servo \n");
 							uint16_t value = ((packet->data[5] << 8) | packet->data[6]);
-							PWM::TopServoMove(value);
+							_pwm->TopServoMove(value);
 						}
 						break;
 					case MOVE_BOTTOM_SERVO:
 						if(packet->data_length >= 7) {
+							dbgprintf("Bottom Servo \n");
 							uint16_t value = ((packet->data[5] << 8) | packet->data[6]);
-							PWM::BottomServoMove(value);
+							_pwm->BottomServoMove(value);
 						}
 					break;
 						default:
@@ -304,6 +298,7 @@ ERRORS COMMAND::send_packet_network(Packet *packet, uint8_t max_network_retry) {
 		return NETWORK_COMM_TIMEOUT;
 	}
 	else {
+		dbgprintf("Sending global ack\n");
 		for(uint8_t port = 0; port < MAX_BLOCKS_CONNECTED; port++) {
 			if(_realiable_comms->is_port_connected(port)) {
 				if(_realiable_comms->send_packet(port, packet) != COMMS_SUCCESS) {
@@ -321,7 +316,17 @@ bool COMMAND::check_repeated(uint8_t packet_id, uint8_t source, uint8_t destinat
 	return _packets_id_received->checkRepeated(packet_id) & _packets_source_received->checkRepeated(source) & _packets_source_received->checkRepeated(destination);
 }
 
-
+void COMMAND::move_forward(){
+	uint16_t value = (PWM_MAX + PWM_MIN)/2;
+	_pwm->BottomServoMove(value);
+	_delay_ms(200);
+	_pwm->TopServoMove(value);
+	_delay_ms(200);
+	_pwm->BottomServoMove(PWM_MIN);
+	_delay_ms(200);
+	_pwm->TopServoMove(PWM_MAX);
+	_delay_ms(200);
+}
 
 
 

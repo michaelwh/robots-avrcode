@@ -11,6 +11,7 @@
 #include "config.hpp"
 #include "util.hpp"
 #include "serialcomms.hpp"
+#include "pwm.hpp"
 
 enum ERRORS{
 	FAIL_REQUEST,
@@ -26,6 +27,7 @@ class COMMAND {
 
 	volatile uint8_t _current_cmd;
 	ReliableComms* _realiable_comms;
+	PWM *_pwm;
 
 	public:
 	volatile uint8_t _ID;
@@ -46,7 +48,8 @@ class COMMAND {
 
 
 
-	COMMAND(ReliableComms* rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received);
+
+	COMMAND(ReliableComms* rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received, PWM *pwm_move);
 	ERRORS update_connected();
 	ERRORS request_id(uint8_t port);
 	ERRORS return_id(uint8_t port);
@@ -64,6 +67,7 @@ class COMMAND {
 	bool check_repeated(uint8_t packet_id, uint8_t source, uint8_t destination);
 	int get_block_connected(uint8_t port);
 	ERRORS send_pulse(uint8_t port, uint16_t pulse_value);
+	void move_forward();
 
 	void command_update();
 };
