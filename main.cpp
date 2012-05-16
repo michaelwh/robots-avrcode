@@ -16,6 +16,7 @@
 #include "debug.hpp"
 #include "commands.hpp"
 #include "util.hpp"
+#include "movement.hpp"
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
@@ -31,7 +32,7 @@ volatile uint8_t * const port_snoop_orientation_pins[] = { &PINC, &PINC, &PINC, 
 const uint8_t port_snoop_orientation_pinsnos[] = { 5, 4, 2, 3, 7, 6 };
 
 
-
+volatile uint16_t millisecond_counter = 0;
 
 
 volatile bool prev_pinchange_values[num_ports];
@@ -56,6 +57,7 @@ ByteRingBuffer packets_destination_received(MAX_NETWORK_PACKET_STORED);
 
 COMMAND cmd(&reliable_comms, &queue , &packets_id_received, &packets_source_received, &packets_destination_received, &pwm_move);
 
+Movement movement(&pwm_move);
 
 /* Temp testing variables */
 volatile bool send_test_bytes = false;
@@ -65,7 +67,6 @@ volatile uint8_t test_bytes_port = 0;
 volatile uint16_t timer_test_counter = 0;
 /* End temp testing variables */
 
-volatile uint16_t millisecond_counter;
 
 //CounterTimer three_second_counter_timer(&millisecond_counter);
 //CounterTimer one_second_counter_timer(&millisecond_counter);
@@ -121,6 +122,8 @@ ISR(USART1_RX_vect) {
 
 }
 
+uint8_t ms_pwm_count = 0;
+
 ISR(TIMER0_COMPA_vect) {
 
 	//CLR_BIT(PORTC, 1);
@@ -143,7 +146,13 @@ ISR(TIMER0_COMPA_vect) {
 	//three_second_ms_counter++;
 	//one_second_ms_counter++;
 	millisecond_counter++;
-	pwm_move.PWMStep();
+
+	ms_pwm_count++;
+	if(ms_pwm_count >= 50) {
+		pwm_move.PWMStep();
+		ms_pwm_count = 0;
+	}
+
 
 	//ms_counter++;
 
@@ -267,7 +276,7 @@ int main(void) {
 	srand(MODULE_ID);
 	//PWM::init();
 	init_debug();
-	dbgprintf("Hello world begin!\n");
+	dbgprintf("Starting up..\n");
 	setup_pinchange_interrupts();
 	setup_mux();
 	USART0.init_76800();
@@ -276,12 +285,14 @@ int main(void) {
 	millisecond_timer_enable();
 	//one_second_counter_timer.reset();
 	//three_second_counter_timer.reset();
+	dbgprintf("Finished starting up...");
 	sei();
 
+	movement.move_forward();
+
 	while(true) {
-		cmd.command_update();
-		dbgprintf("Hello world!\n");
-		//cmd.move_forward();
+		//cmd.command_update();
+		movement.movement_step();
 	}
 
 #if 0

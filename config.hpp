@@ -31,7 +31,7 @@
 
 #define PRESEND_RANDOM_DELAY_US_MIN 200
 #define PRESEND_RANDOM_DELAY_US_MAX 10000
-#define PWM_STEP 20
+#define PWM_STEP 100
 
 #define PWM_INIT_VALUE 1500
 #define TOP_FREQUENCY 20000 //This should give the proper desired frequency

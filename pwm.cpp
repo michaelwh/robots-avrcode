@@ -36,10 +36,10 @@ PWM::PWM() {
 void PWM::PWMStep(void) {
 	_do_step(&_current_value_top, &_target_value_top);
 	_do_step(&_current_value_bottom, &_target_value_bottom);
-	cli();
+	//cli();
 	OCR1B = _current_value_top;
 	OCR1A = _current_value_bottom;
-	sei();
+	//sei();
 }
 
 

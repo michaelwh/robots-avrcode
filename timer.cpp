@@ -29,6 +29,11 @@ void millisecond_timer_enable(void) {
 	TCCR0B = (1<<CS00)|(1<<CS01);
 }
 
+CounterTimer::CounterTimer() {
+	_start_counter_value = 0;
+	_counter_p = &millisecond_counter;
+}
+
 CounterTimer::CounterTimer(volatile uint16_t* counter_p_in) {
 	_start_counter_value = 0;
 	_counter_p = counter_p_in;

@@ -316,17 +316,7 @@ bool COMMAND::check_repeated(uint8_t packet_id, uint8_t source, uint8_t destinat
 	return _packets_id_received->checkRepeated(packet_id) & _packets_source_received->checkRepeated(source) & _packets_source_received->checkRepeated(destination);
 }
 
-void COMMAND::move_forward(){
-	uint16_t value = (PWM_MAX + PWM_MIN)/2;
-	_pwm->BottomServoMove(value);
-	_delay_ms(200);
-	_pwm->TopServoMove(value);
-	_delay_ms(200);
-	_pwm->BottomServoMove(PWM_MIN);
-	_delay_ms(200);
-	_pwm->TopServoMove(PWM_MAX);
-	_delay_ms(200);
-}
+
 
 
 

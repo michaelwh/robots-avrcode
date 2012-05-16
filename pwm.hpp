@@ -7,6 +7,7 @@
 
 #ifndef PWM_HPP_
 #define PWM_HPP_
+#include <stdint.h>
 
 class PWM {
 
