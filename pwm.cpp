@@ -12,10 +12,12 @@
  *      Author: rt5g11
  */
 
-	PWM::PWM() {
+PWM::PWM() {
 	//Sets the prescaler of the timer to
 	uint8_t sreg;
 	sreg = SREG;
+	_target_value_top = 0;
+	_target_value_bottom = 0;
 	_current_value_top = 0;
 	_current_value_bottom = 0;
 	//Set pin PD5 as an output pin
@@ -31,9 +33,39 @@
 }
 
 
+void PWM::PWMStep(void) {
+	_do_step(&_current_value_top, &_target_value_top);
+	_do_step(&_current_value_bottom, &_target_value_bottom);
+	cli();
+	OCR1B = _current_value_top;
+	OCR1A = _current_value_bottom;
+	sei();
+}
+
+
+inline void PWM::_do_step(uint16_t* current_value, uint16_t* target_val) {
+	if(*current_value == *target_val) {
+		// we are at the target value so don't need to move
+	} else if((*current_value + (PWM_STEP/2)) >= *target_val && (*current_value - (PWM_STEP/2)) <= *target_val) {
+		// we are in within one PWM_STEP of the target value so we should stop stepping and jump directly to that value
+		*current_value = *target_val;
+	} else if(*current_value > *target_val) {
+		// we are above the target value so need to decrease our value
+		*current_value = *current_value - PWM_STEP;
+	} else {
+		// we are below the target value so need to increase our value
+		*current_value = *current_value + PWM_STEP;
+	}
+}
 
 uint8_t PWM::TopServoMove(uint16_t pwm_value) {
-
+	if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
+		return MESSAGE_ERROR;
+	else {
+		_target_value_top = pwm_value;
+		return MESSAGE_OK;
+	}
+#if 0
 	if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
 		return MESSAGE_ERROR;
 	else {
@@ -60,9 +92,17 @@ uint8_t PWM::TopServoMove(uint16_t pwm_value) {
 	}
 	_current_value_top = pwm_value;
 	return MESSAGE_OK;
+#endif
 }
 
 uint8_t PWM::BottomServoMove(uint16_t pwm_value) {
+	if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
+		return MESSAGE_ERROR;
+	else {
+		_target_value_bottom = pwm_value;
+		return MESSAGE_OK;
+	}
+#if 0
 	if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
 		return MESSAGE_ERROR;
 	else {
@@ -89,4 +129,5 @@ uint8_t PWM::BottomServoMove(uint16_t pwm_value) {
 	}
 	_current_value_bottom = pwm_value;
 	return MESSAGE_OK;
+#endif
 }

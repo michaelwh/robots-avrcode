@@ -67,8 +67,8 @@ volatile uint16_t timer_test_counter = 0;
 
 volatile uint16_t millisecond_counter;
 
-CounterTimer three_second_counter_timer(&millisecond_counter);
-CounterTimer one_second_counter_timer(&millisecond_counter);
+//CounterTimer three_second_counter_timer(&millisecond_counter);
+//CounterTimer one_second_counter_timer(&millisecond_counter);
 
 //volatile uint16_t three_second_ms_counter = 0;
 //volatile uint16_t one_second_ms_counter = 0;
@@ -143,6 +143,7 @@ ISR(TIMER0_COMPA_vect) {
 	//three_second_ms_counter++;
 	//one_second_ms_counter++;
 	millisecond_counter++;
+	pwm_move.PWMStep();
 
 	//ms_counter++;
 
@@ -249,13 +250,7 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 		}
 
 	}
-
-
-
-
-
 }
-
 
 
 int main(void) {
@@ -271,19 +266,25 @@ int main(void) {
 	}
 	srand(MODULE_ID);
 	//PWM::init();
+	init_debug();
+	dbgprintf("Hello world begin!\n");
 	setup_pinchange_interrupts();
 	setup_mux();
 	USART0.init_76800();
-	init_debug();
 	controller_pc.init(rx_packet_callback_func);
 	multiplexedComms.init(rx_packet_callback_func, pinchange_interrupts_enable, pinchange_interrupts_disable, set_mux_port);
 	millisecond_timer_enable();
-	one_second_counter_timer.reset();
-	three_second_counter_timer.reset();
+	//one_second_counter_timer.reset();
+	//three_second_counter_timer.reset();
 	sei();
-	cmd.update_connected();
-	uint16_t value = (PWM_MAX + PWM_MIN)/2;
-	cmd.command_update();
+
+	while(true) {
+		cmd.command_update();
+		dbgprintf("Hello world!\n");
+		//cmd.move_forward();
+	}
+
+#if 0
 	for (uint8_t i = 0; i < 20; i++) {
 				/*PWM::BottomServoMove(value);*/
 				//one_second_ms_counter = 0;
@@ -294,6 +295,8 @@ int main(void) {
 		_delay_ms(200);
 		pwm_move.TopServoMove(1000);
 		}
+#endif
+
 #if 0
 	for (uint8_t i = 0; i < 20; i++) {
 				/*PWM::BottomServoMove(value);*/
