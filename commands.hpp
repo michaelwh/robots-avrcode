@@ -12,6 +12,7 @@
 #include "util.hpp"
 #include "serialcomms.hpp"
 #include "pwm.hpp"
+#include "movement.hpp"
 
 enum ERRORS{
 	FAIL_REQUEST,
@@ -46,10 +47,12 @@ class COMMAND {
 	ByteRingBuffer *_packets_id_received;
 	PacketRingBuffer* packet_queue;
 
+	Movement *_movement;
 
 
 
-	COMMAND(ReliableComms* rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received, PWM *pwm_move);
+
+	COMMAND(ReliableComms* rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received, PWM *pwm_move, Movement *movement_in);
 	ERRORS update_connected();
 	ERRORS request_id(uint8_t port);
 	ERRORS return_id(uint8_t port);

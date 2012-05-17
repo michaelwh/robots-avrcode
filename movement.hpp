@@ -15,7 +15,8 @@
 
 enum movement_state_t {
 	MOVEMENT_STOPPED,
-	MOVEMENT_FORWARD
+	MOVEMENT_FORWARD,
+	MOVEMENT_WIGGLE
 };
 
 
@@ -38,7 +39,8 @@ public:
 	Movement(PWM* pwm);
 	void movement_step();
 	void move_forward();
-	void _do_step(const uint16_t* sequence_top_values, const uint16_t* sequence_bottom_values, const uint16_t* sequence_delays, const uint8_t sequence_length);
+	void move_wiggle();
+	bool _do_step(const uint16_t* sequence_top_values, const uint16_t* sequence_bottom_values, const uint16_t* sequence_delays, const uint8_t sequence_length);
 
 };
 

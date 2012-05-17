@@ -16,9 +16,11 @@
 #include "config.hpp"
 #include "debug.hpp"
 #include "pwm.hpp"
+#include "movement.hpp"
+
 
 /*COMMAND member function*/
-COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received, PWM *pwm_move) {
+COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingBuffer *packets_id_received, ByteRingBuffer *packets_source_received, ByteRingBuffer *packets_destination_received, PWM *pwm_move, Movement *movement_in) {
 	_realiable_comms = rel_comms;
 	//The current command issued
 	//_current_cmd = DEFAULT_DATA;
@@ -35,6 +37,7 @@ COMMAND::COMMAND(ReliableComms *rel_comms, PacketRingBuffer* queue_in, ByteRingB
 	_got_ack_global_flag = false;
 	_packet_number = 0;
 	_pwm = pwm_move;
+	_movement = movement_in;
 }
 
 ERRORS COMMAND::update_connected() {
@@ -180,6 +183,8 @@ void COMMAND::command_update() {
 					if(packet->data_length >= 4) {
 						uint16_t pulse_value = packet->data[2] << 8 | packet->data[3];
 						dbgprintf("Got pulse of value %d\n", pulse_value);
+						dbgprintf("Wiggling!\n");
+						_movement->move_wiggle();
 					}
 					break;
 

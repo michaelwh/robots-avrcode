@@ -55,9 +55,11 @@ ByteRingBuffer packets_id_received(MAX_NETWORK_PACKET_STORED);
 ByteRingBuffer packets_source_received(MAX_NETWORK_PACKET_STORED);
 ByteRingBuffer packets_destination_received(MAX_NETWORK_PACKET_STORED);
 
-COMMAND cmd(&reliable_comms, &queue , &packets_id_received, &packets_source_received, &packets_destination_received, &pwm_move);
-
 Movement movement(&pwm_move);
+
+COMMAND cmd(&reliable_comms, &queue , &packets_id_received, &packets_source_received, &packets_destination_received, &pwm_move, &movement);
+
+
 
 /* Temp testing variables */
 volatile bool send_test_bytes = false;
@@ -69,7 +71,7 @@ volatile uint16_t timer_test_counter = 0;
 
 
 //CounterTimer three_second_counter_timer(&millisecond_counter);
-//CounterTimer one_second_counter_timer(&millisecond_counter);
+CounterTimer wiggle_timer;
 
 //volatile uint16_t three_second_ms_counter = 0;
 //volatile uint16_t one_second_ms_counter = 0;
@@ -262,6 +264,8 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 }
 
 
+bool wiggled = false;
+
 int main(void) {
 	cli();
 	SET_BIT(DDRC, 0);
@@ -288,11 +292,34 @@ int main(void) {
 	dbgprintf("Finished starting up...");
 	sei();
 
-	movement.move_forward();
+	//movement.move_forward();
+	wiggle_timer.reset();
 
 	while(true) {
 		//cmd.command_update();
 		movement.movement_step();
+		cmd.command_update();
+
+#if MODULE_ID == 0
+
+		if(!wiggled && wiggle_timer.has_elapsed(2000)) {
+			movement.move_wiggle();
+			wiggled = true;
+			wiggle_timer.reset();
+		}
+
+		if(wiggled && wiggle_timer.has_elapsed(800)) {
+			dbgprintf("Sending pulse!\n");
+			for (uint8_t port_i = 0; port_i < MAX_BLOCKS_CONNECTED; port_i++)
+				cmd.send_pulse(port_i, 100);
+			wiggled = false;
+			wiggle_timer.reset();
+		}
+
+
+
+#endif
+
 	}
 
 #if 0
