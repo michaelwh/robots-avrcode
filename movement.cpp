@@ -221,24 +221,28 @@ const uint8_t sequence_forward_length = 2; //4;
 #endif
 
 const uint16_t sequence_wiggle_top_values[] = {
-		PWM_MIDDLE,
-		PWM_MIDDLE + 200,
-		PWM_MIDDLE - 200,
+#if MODULE_ID == 0
+		PWM_MIDDLE + 500,
 		PWM_MIDDLE
+#else
+		PWM_MIDDLE + 500,
+		PWM_MAX
+#endif
 };
 
 const uint16_t sequence_wiggle_bottom_values[] = {
-		PWM_MIDDLE,
-		PWM_MIDDLE - 200,
-		PWM_MIDDLE + 200,
+#if MODULE_ID == 0
+		PWM_MIDDLE - 500,
 		PWM_MIDDLE
+#else
+		PWM_MIDDLE - 500,
+		PWM_MIN
+#endif
 };
 
 const uint16_t sequence_wiggle_delays[] = {
-		200,
-		200,
-		200,
-		200
+		1000,
+		1000
 };
 
 const uint8_t sequence_wiggle_length = 4;

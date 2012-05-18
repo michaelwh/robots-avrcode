@@ -345,7 +345,7 @@ int main(void) {
 
 
 
-		if(send_wiggle_after_delay && wiggle_timer.has_elapsed(800)) {
+		if(send_wiggle_after_delay && wiggle_timer.has_elapsed(1500)) {
 			dbgprintf("Sending pulse!\n");
 			for (uint8_t port_i = 0; port_i < MAX_BLOCKS_CONNECTED; port_i++) {
 				if(port_i != do_not_send_pulse_to_this_port) {
@@ -360,7 +360,7 @@ int main(void) {
 
 #if MODULE_ID == 0
 		if (any_connected) {
-			if(!send_wiggle_after_delay && wiggle_timer.has_elapsed(2000)) {
+			if(!send_wiggle_after_delay && wiggle_timer.has_elapsed(2500)) {
 				movement.move_wiggle();
 				send_wiggle_after_delay = true;
 				wiggle_timer.reset();
