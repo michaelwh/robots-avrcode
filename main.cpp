@@ -252,9 +252,18 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 			//Change ID of teh packet to this one
 			rx_packet[2] = cmd._ID;
 		}
-		bool appendret = cmd.packet_queue->append((uint8_t*)rx_packet, rx_packet_length, rx_port);
+		//bool appendret = cmd.packet_queue->append((uint8_t*)rx_packet, rx_packet_length, rx_port);
 
-		if(appendret && packet.requires_ack()){
+		if(packet.get_command() == COMMAND_PULSE && packet.data_length >= 4) {
+			uint16_t pulse_value = packet.data[2] << 8 | packet.data[3];
+			dbgprintf("Got pulse of value %d\n", pulse_value);
+			dbgprintf("Wiggling!\n");
+			movement.move_wiggle();
+			send_wiggle_after_delay = true;
+		}
+
+		//if(appendret && packet.requires_ack()){
+		if(packet.requires_ack()){
 			//send_test_bytes = true;
 			//test_bytes_port = rx_port;
 
@@ -308,11 +317,12 @@ int main(void) {
 
 	while(true) {
 		movement.movement_step();
-		cmd.command_update();
+		//cmd.command_update();
 
 
 		if(any_connected_timer.has_elapsed(2500)) {
 			dbgprintf("Checking if any connected...\n");
+			any_connected = false;
 			for (uint8_t port_i = 0; port_i < MAX_BLOCKS_CONNECTED; port_i++) {
 				if (reliable_comms.is_port_connected(port_i)) {
 					any_connected = true;
