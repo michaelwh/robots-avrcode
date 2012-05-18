@@ -71,7 +71,7 @@ volatile uint8_t test_bytes_port = 0;
 volatile uint16_t timer_test_counter = 0;
 /* End temp testing variables */
 
-
+volatile int do_not_send_pulse_to_this_port = -1;
 //CounterTimer three_second_counter_timer(&millisecond_counter);
 CounterTimer send_wiggle_timer;
 CounterTimer wiggle_timer;
@@ -259,6 +259,7 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 			dbgprintf("Got pulse of value %d\n", pulse_value);
 			dbgprintf("Wiggling!\n");
 			movement.move_wiggle();
+			do_not_send_pulse_to_this_port = rx_port;
 			send_wiggle_after_delay = true;
 		}
 
@@ -346,8 +347,12 @@ int main(void) {
 
 		if(send_wiggle_after_delay && wiggle_timer.has_elapsed(800)) {
 			dbgprintf("Sending pulse!\n");
-			for (uint8_t port_i = 0; port_i < MAX_BLOCKS_CONNECTED; port_i++)
-				cmd.send_pulse(port_i, 100);
+			for (uint8_t port_i = 0; port_i < MAX_BLOCKS_CONNECTED; port_i++) {
+				if(port_i != do_not_send_pulse_to_this_port) {
+					cmd.send_pulse(port_i, 100);
+				}
+			}
+			do_not_send_pulse_to_this_port = -1;
 			send_wiggle_after_delay = false;
 			wiggle_timer.reset();
 		}

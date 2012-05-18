@@ -254,7 +254,8 @@ void MultiplexedComms::send_data_blocking(uint8_t port, uint8_t* data, uint8_t d
 
 	// spin until we have stopped receiving or we are receiving but
 	// on the correct port
-	while(_rx_state != RX_IDLE && (_current_port != port));
+	if(_rx_state != RX_IDLE && (_current_port != port))
+		return;
 
 	if(_current_port != port)
 		set_current_port(port);

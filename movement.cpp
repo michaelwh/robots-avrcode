@@ -18,6 +18,31 @@
 // PWM_MAX
 
 const uint16_t sequence_forward_top_values[] = {
+		0,
+		(PWM_MAX + PWM_MIN) / 2,
+		0,
+		PWM_MAX
+};
+
+// PWM_MIN
+const uint16_t sequence_forward_bottom_values[] = {
+		(PWM_MAX + PWM_MIN) / 2,
+		0,
+		PWM_MIN,
+		0
+};
+
+const uint16_t sequence_forward_delays[] = {
+		200,
+		200,
+		200,
+		200
+};
+
+const uint8_t sequence_forward_length = 4;
+
+#ifdef LOLOL
+const uint16_t sequence_forward_top_values[] = {
 #if MODULE_ID == 0
 		PWM_MIDDLE + 500,
 		PWM_MIDDLE
@@ -51,6 +76,7 @@ const uint16_t sequence_forward_delays[] = {
 
 const uint8_t sequence_forward_length = 2; //4;
 
+#endif
 
 #ifdef ELEPHANT_INPAHSE
 
