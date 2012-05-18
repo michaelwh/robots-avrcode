@@ -16,10 +16,10 @@ PWM::PWM() {
 	//Sets the prescaler of the timer to
 	uint8_t sreg;
 	sreg = SREG;
-	_target_value_top = 0;
-	_target_value_bottom = 0;
-	_current_value_top = 0;
-	_current_value_bottom = 0;
+	//_target_value_top = 0;
+	//_target_value_bottom = 0;
+	//_current_value_top = 0;
+	//_current_value_bottom = 0;
 	//Set pin PD5 as an output pin
 	DDRD |= (1 << PD5) | (1 << PD4);
 	//Setting the mode of operation for the timer 1, Non inverting phase correct PWM prescaler 8 and ICR with the value
@@ -33,17 +33,17 @@ PWM::PWM() {
 }
 
 
-void PWM::PWMStep(void) {
-	_do_step(&_current_value_top, &_target_value_top);
-	_do_step(&_current_value_bottom, &_target_value_bottom);
-	//cli();
+/*void PWM::PWMStep(void) {
+	//_do_step(&_current_value_top, &_target_value_top);
+	//_do_step(&_current_value_bottom, &_target_value_bottom);
+	cli();
 	OCR1A = _current_value_top;
 	OCR1B = _current_value_bottom;
-	//sei();
-}
+	sei();
+}*/
 
 
-inline void PWM::_do_step(uint16_t* current_value, uint16_t* target_val) {
+/*inline void PWM::_do_step(uint16_t* current_value, uint16_t* target_val) {
 	if(*current_value == *target_val) {
 		// we are at the target value so don't need to move
 	} else if((*current_value + (PWM_STEP/2)) >= *target_val && (*current_value - (PWM_STEP/2)) <= *target_val) {
@@ -56,15 +56,18 @@ inline void PWM::_do_step(uint16_t* current_value, uint16_t* target_val) {
 		// we are below the target value so need to increase our value
 		*current_value = *current_value + PWM_STEP;
 	}
-}
+}*/
 
 uint8_t PWM::TopServoMove(uint16_t pwm_value) {
-	if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
-		return MESSAGE_ERROR;
-	else {
-		_target_value_top = pwm_value;
+	//if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
+	//	return MESSAGE_ERROR;
+	//else {
+		cli();
+		OCR1A = pwm_value;
+		sei();
+		//_target_value_top = pwm_value;
 		return MESSAGE_OK;
-	}
+	//}
 #if 0
 	if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
 		return MESSAGE_ERROR;
@@ -96,12 +99,15 @@ uint8_t PWM::TopServoMove(uint16_t pwm_value) {
 }
 
 uint8_t PWM::BottomServoMove(uint16_t pwm_value) {
-	if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
-		return MESSAGE_ERROR;
-	else {
-		_target_value_bottom = pwm_value;
+	//if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
+	//	return MESSAGE_ERROR;
+	//else {
+		//_target_value_bottom = pwm_value;
+		cli();
+		OCR1B = pwm_value;
+		sei();
 		return MESSAGE_OK;
-	}
+	//}
 #if 0
 	if((pwm_value > PWM_MAX) | (pwm_value < PWM_MIN))
 		return MESSAGE_ERROR;

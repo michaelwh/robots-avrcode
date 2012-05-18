@@ -153,11 +153,11 @@ ISR(TIMER0_COMPA_vect) {
 	//one_second_ms_counter++;
 	millisecond_counter++;
 
-	ms_pwm_count++;
-	if(ms_pwm_count >= 50) {
-		pwm_move.PWMStep();
-		ms_pwm_count = 0;
-	}
+	//ms_pwm_count++;
+	//if(ms_pwm_count >= 50) {
+	//	pwm_move.PWMStep();
+	//	ms_pwm_count = 0;
+	//}
 
 
 	//ms_counter++;

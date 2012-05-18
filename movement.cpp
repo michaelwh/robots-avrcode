@@ -12,27 +12,31 @@
 #include "pwm.hpp"
 
 #define PWM_MIDDLE ((PWM_MAX + PWM_MIN) / 2)
+#define PWM_ONE_QUARTER ((PWM_MAX + PWM_MIN) * (1/4))
 
 // 0 means no movement
+// PWM_MAX
+
 const uint16_t sequence_forward_top_values[] = {
 #if MODULE_ID == 0
-		PWM_MIDDLE,
+		PWM_MIDDLE + 500,
 		PWM_MIDDLE
 #else
-		PWM_MIDDLE,
+		PWM_MAX,
 		PWM_MAX
 #endif
 		//0,
 		//PWM_MAX
 };
 
+// PWM_MIN
 const uint16_t sequence_forward_bottom_values[] = {
 #if MODULE_ID == 0
-		PWM_MIN,
-		PWM_MIDDLE
+		PWM_MIDDLE - 500,
+		PWM_MIN
 #else
 		PWM_MIDDLE,
-		PWM_MIDDLE
+		PWM_MIDDLE + 500
 #endif
 		//PWM_MIN,
 		//0
@@ -46,6 +50,149 @@ const uint16_t sequence_forward_delays[] = {
 };
 
 const uint8_t sequence_forward_length = 2; //4;
+
+
+#ifdef ELEPHANT_INPAHSE
+
+const uint16_t sequence_forward_top_values[] = {
+#if MODULE_ID == 0
+		PWM_MIDDLE + 500,
+		PWM_MIDDLE
+#else
+		PWM_MAX,
+		PWM_MAX
+#endif
+		//0,
+		//PWM_MAX
+};
+
+// PWM_MIN
+const uint16_t sequence_forward_bottom_values[] = {
+#if MODULE_ID == 0
+		PWM_MIDDLE - 500,
+		PWM_MIN
+#else
+		PWM_MIDDLE,
+		PWM_MIDDLE + 500
+#endif
+		//PWM_MIN,
+		//0
+};
+
+const uint16_t sequence_forward_delays[] = {
+		1000,
+		1000
+		//200,
+		//200
+};
+
+const uint8_t sequence_forward_length = 2; //4;
+
+#endif
+
+#ifdef WALTZ
+const uint16_t sequence_forward_top_values[] = {
+#if MODULE_ID == 0
+		PWM_MAX,
+		PWM_MIDDLE + 500
+#else
+		PWM_MIDDLE + 500,
+		PWM_MAX
+#endif
+		//0,
+		//PWM_MAX
+};
+
+// PWM_MIN
+const uint16_t sequence_forward_bottom_values[] = {
+#if MODULE_ID == 0
+		PWM_MAX,
+		PWM_MIDDLE + 500
+#else
+		PWM_MIDDLE + 500,
+		PWM_MAX
+#endif
+		//PWM_MIN,
+		//0
+};
+
+const uint16_t sequence_forward_delays[] = {
+		1000,
+		1000
+		//200,
+		//200
+};
+
+const uint8_t sequence_forward_length = 2; //4;
+
+#endif
+
+#ifdef JUMPING_WORM
+// 0 means no movement
+const uint16_t sequence_forward_top_values[] = {
+#if MODULE_ID == 0
+		PWM_MIDDLE + 500,
+		PWM_MIDDLE
+#else
+		PWM_MIDDLE + 500,
+		PWM_MAX
+#endif
+		//0,
+		//PWM_MAX
+};
+
+const uint16_t sequence_forward_bottom_values[] = {
+#if MODULE_ID == 0
+		PWM_MIDDLE - 500,
+		PWM_MIDDLE
+#else
+		PWM_MIDDLE - 500,
+		PWM_MIN
+#endif
+		//PWM_MIN,
+		//0
+};
+
+const uint16_t sequence_forward_delays[] = {
+		1000,
+		1000
+		//200,
+		//200
+};
+
+const uint8_t sequence_forward_length = 2; //4;
+#endif
+
+#ifdef MTRAN_RUBBISH
+const uint16_t sequence_forward_top_values[] = {
+#if MODULE_ID == 0
+		PWM_MIDDLE,
+		PWM_MIDDLE
+#else
+		PWM_MIDDLE,
+		PWM_MAX
+#endif
+
+};
+
+const uint16_t sequence_forward_bottom_values[] = {
+#if MODULE_ID == 0
+		PWM_MIN,
+		PWM_MIDDLE
+#else
+		PWM_MIDDLE,
+		PWM_MIDDLE
+#endif
+
+};
+
+const uint16_t sequence_forward_delays[] = {
+		1000,
+		1000
+};
+
+const uint8_t sequence_forward_length = 2; //4;
+#endif
 
 const uint16_t sequence_wiggle_top_values[] = {
 		PWM_MIDDLE,
