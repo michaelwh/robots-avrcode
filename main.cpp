@@ -17,6 +17,7 @@
 #include "commands.hpp"
 #include "util.hpp"
 #include "movement.hpp"
+#include "flags.hpp"
 
 USART USART0(&UBRR0H, &UBRR0L, &UCSR0A, &UCSR0B, &UCSR0C, &UDR0, UDRE0, U2X0);
 
@@ -34,6 +35,7 @@ const uint8_t port_snoop_orientation_pinsnos[] = { 5, 4, 2, 3, 7, 6 };
 
 volatile uint16_t millisecond_counter = 0;
 
+volatile bool send_wiggle_after_delay = false;
 
 volatile bool prev_pinchange_values[num_ports];
 //volatile bool prev_pinchange_orientation_values[num_ports];
@@ -71,7 +73,9 @@ volatile uint16_t timer_test_counter = 0;
 
 
 //CounterTimer three_second_counter_timer(&millisecond_counter);
-CounterTimer wiggle_timer;
+//CounterTimer send_wiggle_timer;
+//CounterTimer wiggle_timer;
+//CounterTimer any_connected_timer;
 
 //volatile uint16_t three_second_ms_counter = 0;
 //volatile uint16_t one_second_ms_counter = 0;
@@ -264,7 +268,9 @@ void rx_packet_callback_func(uint8_t rx_port, volatile uint8_t* rx_packet, uint8
 }
 
 
-bool wiggled = false;
+
+bool any_connected = false;
+
 
 int main(void) {
 	cli();
@@ -292,33 +298,53 @@ int main(void) {
 	dbgprintf("Finished starting up...");
 	sei();
 
-	//movement.move_forward();
-	wiggle_timer.reset();
+
+
+
+	//wiggle_timer.reset();
+	//any_connected_timer.reset();
+
+	movement.move_forward();
 
 	while(true) {
-		//cmd.command_update();
 		movement.movement_step();
 		cmd.command_update();
 
-#if MODULE_ID == 0
 
-		if(!wiggled && wiggle_timer.has_elapsed(2000)) {
-			movement.move_wiggle();
-			wiggled = true;
-			wiggle_timer.reset();
+		/*if(any_connected_timer.has_elapsed(2500)) {
+			for (uint8_t port_i = 0; port_i < MAX_BLOCKS_CONNECTED; port_i++) {
+				if (reliable_comms.is_port_connected(port_i))
+					any_connected = true;
+			}
+
+			if (!any_connected)
+				movement.move_forward();
+
+			any_connected_timer.reset();
 		}
 
-		if(wiggled && wiggle_timer.has_elapsed(800)) {
+
+
+
+		if(send_wiggle_after_delay && wiggle_timer.has_elapsed(800)) {
 			dbgprintf("Sending pulse!\n");
 			for (uint8_t port_i = 0; port_i < MAX_BLOCKS_CONNECTED; port_i++)
 				cmd.send_pulse(port_i, 100);
-			wiggled = false;
+			send_wiggle_after_delay = false;
 			wiggle_timer.reset();
-		}
+		}*/
 
 
-
+#if MODULE_ID == 0
+		//if (any_connected) {
+		//	if(!send_wiggle_after_delay && wiggle_timer.has_elapsed(2000)) {
+		//		movement.move_wiggle();
+		//		send_wiggle_after_delay = true;
+		//		wiggle_timer.reset();
+		//	}
+		//}
 #endif
+
 
 	}
 

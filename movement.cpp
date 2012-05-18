@@ -15,27 +15,37 @@
 
 // 0 means no movement
 const uint16_t sequence_forward_top_values[] = {
-		0,
+#if MODULE_ID == 0
 		PWM_MIDDLE,
-		0,
+		PWM_MIDDLE
+#else
+		PWM_MIDDLE,
 		PWM_MAX
+#endif
+		//0,
+		//PWM_MAX
 };
 
 const uint16_t sequence_forward_bottom_values[] = {
-		PWM_MIDDLE,
-		0,
+#if MODULE_ID == 0
 		PWM_MIN,
-		0
+		PWM_MIDDLE
+#else
+		PWM_MIDDLE,
+		PWM_MIDDLE
+#endif
+		//PWM_MIN,
+		//0
 };
 
 const uint16_t sequence_forward_delays[] = {
-		200,
-		200,
-		200,
-		200
+		1000,
+		1000
+		//200,
+		//200
 };
 
-const uint8_t sequence_forward_length = 4;
+const uint8_t sequence_forward_length = 2; //4;
 
 const uint16_t sequence_wiggle_top_values[] = {
 		PWM_MIDDLE,

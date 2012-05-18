@@ -17,6 +17,7 @@
 #include "debug.hpp"
 #include "pwm.hpp"
 #include "movement.hpp"
+#include "flags.hpp"
 
 
 /*COMMAND member function*/
@@ -185,6 +186,7 @@ void COMMAND::command_update() {
 						dbgprintf("Got pulse of value %d\n", pulse_value);
 						dbgprintf("Wiggling!\n");
 						_movement->move_wiggle();
+						send_wiggle_after_delay = true;
 					}
 					break;
 

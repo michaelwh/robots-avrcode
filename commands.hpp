@@ -47,6 +47,8 @@ class COMMAND {
 	ByteRingBuffer *_packets_id_received;
 	PacketRingBuffer* packet_queue;
 
+
+
 	Movement *_movement;
 
 
