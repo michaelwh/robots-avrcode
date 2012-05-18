@@ -492,7 +492,7 @@ comms_status_t ReliableComms::send_packet(uint8_t port, Packet* packet, const ui
 			//dbgprintf(">Locked to port\n");
 			for (uint8_t retry = 0; retry < max_retries; retry++) {
 				//dbgprintf(">Sending (retry %d of %d)\n", retry, max_retries);
-				_delay_us(randWithinRange(PRESEND_RANDOM_DELAY_US_MIN, PRESEND_RANDOM_DELAY_US_MAX));
+				_delay_us(PRESEND_RANDOM_DELAY_US_MIN);//randWithinRange(PRESEND_RANDOM_DELAY_US_MIN, PRESEND_RANDOM_DELAY_US_MAX));
 				_mux_comms->send_data_blocking(port, packet->data, packet->data_length);
 				//dbgprintf(">Sent (retry %d of %d)\n", retry, max_retries);
 				// keep checking timer values and wait until we get an ACK or timeout

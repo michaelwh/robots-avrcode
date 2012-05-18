@@ -164,7 +164,7 @@ ERRORS COMMAND::FLOOD(Packet *packet, uint8_t skip_port) {
 
 void COMMAND::command_update() {
 	//dbgprintf("Command update, queue length: %d\n", packet_queue->length());
-	while(packet_queue->length() > 0) {
+	if(packet_queue->length() > 0) {
 //		dbgprintf("Command update, queue length: %d\n", packet_queue->length());
 		Packet* packet = packet_queue->peek_first();
 		uint8_t port = packet_queue->peek_first_port();

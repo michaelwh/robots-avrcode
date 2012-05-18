@@ -73,9 +73,9 @@ volatile uint16_t timer_test_counter = 0;
 
 
 //CounterTimer three_second_counter_timer(&millisecond_counter);
-//CounterTimer send_wiggle_timer;
-//CounterTimer wiggle_timer;
-//CounterTimer any_connected_timer;
+CounterTimer send_wiggle_timer;
+CounterTimer wiggle_timer;
+CounterTimer any_connected_timer;
 
 //volatile uint16_t three_second_ms_counter = 0;
 //volatile uint16_t one_second_ms_counter = 0;
@@ -301,8 +301,8 @@ int main(void) {
 
 
 
-	//wiggle_timer.reset();
-	//any_connected_timer.reset();
+	wiggle_timer.reset();
+	any_connected_timer.reset();
 
 	movement.move_forward();
 
@@ -311,14 +311,22 @@ int main(void) {
 		cmd.command_update();
 
 
-		/*if(any_connected_timer.has_elapsed(2500)) {
+		if(any_connected_timer.has_elapsed(2500)) {
+			dbgprintf("Checking if any connected...\n");
 			for (uint8_t port_i = 0; port_i < MAX_BLOCKS_CONNECTED; port_i++) {
-				if (reliable_comms.is_port_connected(port_i))
+				if (reliable_comms.is_port_connected(port_i)) {
 					any_connected = true;
+					dbgprintf("Port %u connected!!\n", port_i);
+				}
 			}
 
-			if (!any_connected)
+
+			if (!any_connected) {
+				dbgprintf("No one is connected!\n");
 				movement.move_forward();
+			} else {
+				dbgprintf("Someone is connected!\n");
+			}
 
 			any_connected_timer.reset();
 		}
@@ -332,17 +340,17 @@ int main(void) {
 				cmd.send_pulse(port_i, 100);
 			send_wiggle_after_delay = false;
 			wiggle_timer.reset();
-		}*/
+		}
 
 
 #if MODULE_ID == 0
-		//if (any_connected) {
-		//	if(!send_wiggle_after_delay && wiggle_timer.has_elapsed(2000)) {
-		//		movement.move_wiggle();
-		//		send_wiggle_after_delay = true;
-		//		wiggle_timer.reset();
-		//	}
-		//}
+		if (any_connected) {
+			if(!send_wiggle_after_delay && wiggle_timer.has_elapsed(2000)) {
+				movement.move_wiggle();
+				send_wiggle_after_delay = true;
+				wiggle_timer.reset();
+			}
+		}
 #endif
 
 
